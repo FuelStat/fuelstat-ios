@@ -13,9 +13,15 @@ final class AuthSession {
 
     private(set) var state: State = .restoring
     private(set) var token: String?
-    let api: APIClient
+    private(set) var api: APIClient
+    /// Why the user was signed out without asking for it, shown on the sign-in screen.
+    private(set) var signOutNotice: String?
+    @ObservationIgnored private var isRenewing = false
 
-    init(api: APIClient = APIClient()) {
+    /// The API extends a token by 7 days per refresh; renewing once a day is plenty.
+    private static let renewalInterval: TimeInterval = 20 * 60 * 60
+
+    init(api: APIClient = .configured) {
         self.api = api
     }
 
@@ -30,8 +36,9 @@ final class AuthSession {
             token = stored
             storeUser(user)
             state = .signedIn(user)
+            await renewIfNeeded()
         } catch APIError.unauthorized {
-            clear()
+            clear(notice: APIError.unauthorized.localizedDescription)
         } catch {
             // Server not reachable: stay signed in with the last known user.
             if let user = loadUser() {
@@ -41,6 +48,13 @@ final class AuthSession {
                 clear()
             }
         }
+    }
+
+    /// Changes the server. Only possible while signed out.
+    func useServer(_ baseURL: URL) {
+        guard token == nil else { return }
+        ServerSettings.save(baseURL)
+        api.baseURL = baseURL
     }
 
     /// Throws `APIError.server(code: "mfa_required", …)` when a 2FA code is needed.
@@ -61,29 +75,64 @@ final class AuthSession {
         clear()
     }
 
-    /// Called when an API call reports an expired or revoked token.
-    func handleUnauthorized() {
-        clear()
+    /// Runs an API call with the current token. An expired or revoked token signs the user out.
+    func call<T>(_ operation: (APIClient, String) async throws -> T) async throws -> T {
+        guard let token else { throw APIError.unauthorized }
+        do {
+            return try await operation(api, token)
+        } catch APIError.unauthorized {
+            clear(notice: APIError.unauthorized.localizedDescription)
+            throw APIError.unauthorized
+        }
+    }
+
+    /// Swaps the token for a fresh one at most once a day, so active users stay signed in.
+    /// After 90 days without a password sign-in the API refuses (`reauth_required`) and the user has to sign in again.
+    func renewIfNeeded() async {
+        guard let current = token, !isRenewing else { return }
+        if let last = UserDefaults.standard.object(forKey: Self.renewedAtKey) as? Date,
+           Date.now.timeIntervalSince(last) < Self.renewalInterval {
+            return
+        }
+        isRenewing = true
+        defer { isRenewing = false }
+        do {
+            let renewed = try await api.refresh(token: current)
+            // Ignore the result if the user signed out in the meantime.
+            guard token == current else { return }
+            KeychainStore.saveToken(renewed)
+            token = renewed
+            UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)
+        } catch APIError.unauthorized {
+            if token == current { clear(notice: APIError.unauthorized.localizedDescription) }
+        } catch {
+            // Offline or server error: try again next time.
+        }
     }
 
     private func signIn(_ response: AuthResponse) {
         KeychainStore.saveToken(response.token)
         token = response.token
+        signOutNotice = nil
+        UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)
         storeUser(response.user)
         state = .signedIn(response.user)
     }
 
-    private func clear() {
+    private func clear(notice: String? = nil) {
         KeychainStore.deleteToken()
-        UserDefaults.standard.removeObject(forKey: Self.userIDKey)
-        UserDefaults.standard.removeObject(forKey: Self.userEmailKey)
+        for key in [Self.userIDKey, Self.userEmailKey, Self.renewedAtKey] {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
         token = nil
+        signOutNotice = notice
         state = .signedOut
     }
 
     // Non-secret profile data, so the app can start offline.
     private static let userIDKey = "auth.user.id"
     private static let userEmailKey = "auth.user.email"
+    private static let renewedAtKey = "auth.token.renewedAt"
 
     private func storeUser(_ user: APIUser) {
         UserDefaults.standard.set(user.id, forKey: Self.userIDKey)

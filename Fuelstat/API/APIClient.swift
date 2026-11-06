@@ -1,53 +1,90 @@
 import Foundation
+import FuelstatCore
 
 enum APIError: LocalizedError, Equatable {
     case unauthorized
     case server(code: String, status: Int)
+    /// A plan limit was reached (`plan_required`), e.g. the number of vehicles.
+    case planRequired(feature: String?, limit: Int?, plan: String?)
     case invalidResponse
     case network(String)
 
     var errorDescription: String? {
         switch self {
         case .unauthorized:
-            "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an."
+            String(localized: "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.")
+        case .planRequired(let feature, let limit, let plan):
+            Self.planMessage(feature: feature, limit: limit, plan: plan)
         case .server(let code, _):
             switch code {
-            case "invalid_credentials": "E-Mail oder Passwort ist falsch."
-            case "email_already_exists": "Für diese E-Mail gibt es bereits ein Konto."
-            case "invalid_mfa_code": "Der Bestätigungscode ist falsch."
-            case "too_many_attempts": "Zu viele Versuche. Bitte warte kurz."
-            case "registration_disabled": "Die Registrierung ist derzeit geschlossen."
-            case "plan_required": "Dein Tarif erlaubt keine weiteren Fahrzeuge."
-            case "missing_name": "Bitte gib einen Namen ein."
-            case "invalid_year": "Das Baujahr ist ungültig."
-            case "invalid_licensePlate": "Das Kennzeichen ist ungültig (max. 15 Zeichen)."
-            case "invalid_vin": "Die FIN ist ungültig (max. 17 Zeichen)."
-            case "invalid_firstRegistration": "Das Datum der Erstzulassung ist ungültig."
-            case "invalid_odometerKm": "Der Kilometerstand ist ungültig."
-            case "invalid_tankCapacity": "Der Tankinhalt ist ungültig."
-            case "invalid_batteryCapacity": "Die Akkukapazität ist ungültig."
-            default: "Serverfehler (\(code))."
+            case "invalid_credentials": String(localized: "E-Mail oder Passwort ist falsch.")
+            case "email_already_exists": String(localized: "Für diese E-Mail gibt es bereits ein Konto.")
+            case "invalid_mfa_code": String(localized: "Der Bestätigungscode ist falsch.")
+            case "too_many_attempts": String(localized: "Zu viele Versuche. Bitte warte kurz.")
+            case "registration_disabled": String(localized: "Die Registrierung ist derzeit geschlossen.")
+            case "missing_name": String(localized: "Bitte gib einen Namen ein.")
+            case "invalid_year": String(localized: "Das Baujahr ist ungültig.")
+            case "invalid_licensePlate": String(localized: "Das Kennzeichen ist ungültig (max. 15 Zeichen).")
+            case "invalid_vin": String(localized: "Die FIN ist ungültig (max. 17 Zeichen).")
+            case "invalid_firstRegistration": String(localized: "Das Datum der Erstzulassung ist ungültig.")
+            case "invalid_odometerKm": String(localized: "Der Kilometerstand ist ungültig.")
+            case "invalid_tankCapacity": String(localized: "Der Tankinhalt ist ungültig.")
+            case "invalid_batteryCapacity": String(localized: "Die Akkukapazität ist ungültig.")
+            case "vehicle_not_found": String(localized: "Das Fahrzeug gibt es nicht mehr.")
+            case "missing_file", "invalid_image": String(localized: "Das Bild konnte nicht verarbeitet werden.")
+            case "http_413": String(localized: "Das Bild ist zu groß.")
+            case "http_429": String(localized: "Zu viele Anfragen. Bitte warte kurz.")
+            default: String(localized: "Serverfehler (\(code)).")
             }
         case .invalidResponse:
-            "Unerwartete Antwort vom Server."
+            String(localized: "Unerwartete Antwort vom Server.")
         case .network(let message):
-            "Keine Verbindung zum Server: \(message)"
+            String(localized: "Keine Verbindung zum Server: \(message)")
         }
     }
 
     /// The API error code, e.g. `mfa_required`.
     var code: String? {
-        if case .server(let code, _) = self { return code }
-        return nil
+        switch self {
+        case .server(let code, _): code
+        case .planRequired: "plan_required"
+        default: nil
+        }
+    }
+
+    private static func planMessage(feature: String?, limit: Int?, plan: String?) -> String {
+        let planName = plan.map { $0.prefix(1).uppercased() + $0.dropFirst() }
+        if feature == "maxVehicles", let limit {
+            if let planName {
+                return String(localized: "Mit deinem Tarif \(planName) sind höchstens \(limit) Fahrzeuge möglich. Für mehr Fahrzeuge brauchst du einen größeren Tarif.")
+            }
+            return String(localized: "Dein Tarif erlaubt höchstens \(limit) Fahrzeuge.")
+        }
+        return String(localized: "Diese Funktion ist in deinem Tarif nicht enthalten.")
     }
 }
 
-/// Minimal client for the Fuelstat REST API (https://tanken.1emc.de/api/v1).
+/// Client for the Fuelstat REST API, following `docs/openapi.1.0.0.yaml` in FuelStat/fuelstat.
 struct APIClient {
     static let defaultBaseURL = URL(string: "https://tanken.1emc.de/api/v1")!
 
+    /// API base, e.g. `https://tanken.1emc.de/api/v1`.
     var baseURL: URL = defaultBaseURL
     var session: URLSession = .shared
+
+    // MARK: - Server
+
+    func health() async throws -> HealthResponse {
+        try await send("health", token: nil)
+    }
+
+    /// Absolute address for an image path from an API response (they are relative, e.g. `/api/v1/files/…`).
+    func resolve(_ path: String?) -> URL? {
+        guard let path, !path.isEmpty else { return nil }
+        return URL(string: path, relativeTo: baseURL)?.absoluteURL
+    }
+
+    // MARK: - Auth
 
     func login(email: String, password: String, code: String?) async throws -> AuthResponse {
         var body = ["email": email, "password": password]
@@ -60,7 +97,13 @@ struct APIClient {
     }
 
     func whoami(token: String) async throws -> APIUser {
-        try await send("whoami", method: "GET", body: nil as [String: String]?, token: token)
+        try await send("whoami", token: token)
+    }
+
+    /// Exchanges a valid token for a new one with 7 more days, up to 90 days after the last password sign-in.
+    func refresh(token: String) async throws -> String {
+        let response: TokenResponse = try await send("auth/refresh", method: "POST", token: token)
+        return response.token
     }
 
     func revoke(token: String) async throws {
@@ -69,49 +112,118 @@ struct APIClient {
         )
     }
 
-    func vehicles(token: String) async throws -> [RemoteVehicle] {
-        try await send("vehicles", method: "GET", body: nil as [String: String]?, token: token)
-    }
+    // MARK: - Vehicles
 
-    func createVehicle(_ request: VehicleCreateRequest, token: String) async throws -> RemoteVehicle {
-        try await send("vehicles", method: "POST", body: request, token: token)
+    func vehicles(token: String) async throws -> [RemoteVehicle] {
+        try await send("vehicles", token: token)
     }
 
     func vehicle(id: String, token: String) async throws -> RemoteVehicle {
-        try await send("vehicles/\(id)", method: "GET", body: nil as [String: String]?, token: token)
+        try await send("vehicles/\(id)", token: token)
+    }
+
+    func createVehicle(_ input: VehicleInput, token: String) async throws -> RemoteVehicle {
+        var input = input
+        input.sendsNulls = false
+        return try await send("vehicles", method: "POST", body: input, token: token)
+    }
+
+    func updateVehicle(id: String, _ input: VehicleInput, token: String) async throws -> RemoteVehicle {
+        var input = input
+        input.sendsNulls = true
+        return try await send("vehicles/\(id)", method: "PATCH", body: input, token: token)
+    }
+
+    func setVehicleImage(id: String, imageURL: String?, token: String) async throws -> RemoteVehicle {
+        try await send("vehicles/\(id)", method: "PATCH", body: VehicleImagePatch(imageUrl: imageURL), token: token)
+    }
+
+    func deleteVehicle(id: String, token: String) async throws {
+        let _: EmptyResponse = try await send("vehicles/\(id)", method: "DELETE", token: token)
+    }
+
+    func stats(vehicleID: String, token: String) async throws -> VehicleStats {
+        try await send("vehicles/\(vehicleID)/stats", token: token)
+    }
+
+    func fillups(vehicleID: String, limit: Int, token: String) async throws -> [RemoteFillup] {
+        try await send("vehicles/\(vehicleID)/fillups", query: [URLQueryItem(name: "limit", value: String(limit))],
+                       token: token)
+    }
+
+    /// Uploads a JPEG as vehicle photo. The server scales it down, strips metadata and stores it as WebP.
+    func uploadVehicleImage(vehicleID: String, jpeg: Data, token: String) async throws -> RemoteMedia {
+        let boundary = "fuelstat-\(UUID().uuidString)"
+        var body = Data()
+        body.append(Data("--\(boundary)\r\n".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"photo.jpg\"\r\n".utf8))
+        body.append(Data("Content-Type: image/jpeg\r\n\r\n".utf8))
+        body.append(jpeg)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+
+        var request = makeRequest("vehicles/\(vehicleID)/media/upload", method: "POST", query: [], token: token)
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+        return try await perform(request, token: token)
     }
 
     // MARK: - Transport
 
     private struct EmptyResponse: Decodable {}
+    private struct NoBody: Encodable {}
+
+    private func send<Response: Decodable>(
+        _ path: String, method: String = "GET", query: [URLQueryItem] = [], token: String?
+    ) async throws -> Response {
+        try await send(path, method: method, query: query, body: nil as NoBody?, token: token)
+    }
 
     private func send<Body: Encodable, Response: Decodable>(
-        _ path: String, method: String, body: Body?, token: String?
+        _ path: String, method: String = "GET", query: [URLQueryItem] = [], body: Body?, token: String?
     ) async throws -> Response {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        var request = makeRequest(path, method: method, query: query, token: token)
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(body)
+        }
+        return try await perform(request, token: token)
+    }
+
+    private func makeRequest(_ path: String, method: String, query: [URLQueryItem], token: String?) -> URLRequest {
+        var url = baseURL.appendingPathComponent(path)
+        if !query.isEmpty, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            components.queryItems = query
+            url = components.url ?? url
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        if let body {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(body)
-        }
+        return request
+    }
 
+    private func perform<Response: Decodable>(_ request: URLRequest, token: String?) async throws -> Response {
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request)
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
         } catch {
             throw APIError.network(error.localizedDescription)
         }
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
 
         guard (200..<300).contains(http.statusCode) else {
-            let code = (try? JSONDecoder().decode(APIErrorResponse.self, from: data))?.error
+            let info = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+            let code = info?.error
             if http.statusCode == 401, token != nil, code != "mfa_required" {
                 throw APIError.unauthorized
+            }
+            if code == "plan_required" {
+                throw APIError.planRequired(feature: info?.feature, limit: info?.limit, plan: info?.plan)
             }
             throw APIError.server(code: code ?? "http_\(http.statusCode)", status: http.statusCode)
         }
@@ -123,4 +235,32 @@ struct APIClient {
             throw APIError.invalidResponse
         }
     }
+}
+
+extension APIClient {
+    /// Client for the server the user chose (stored in UserDefaults), or the hosted service.
+    static var configured: APIClient {
+        APIClient(baseURL: ServerSettings.baseURL)
+    }
+}
+
+/// The server address the user chose on the sign-in screen.
+enum ServerSettings {
+    private static let key = "api.baseURL"
+
+    static var baseURL: URL {
+        UserDefaults.standard.string(forKey: key).flatMap(URL.init(string:)) ?? APIClient.defaultBaseURL
+    }
+
+    static var isCustom: Bool { baseURL != APIClient.defaultBaseURL }
+
+    static func save(_ url: URL) {
+        if url == APIClient.defaultBaseURL {
+            UserDefaults.standard.removeObject(forKey: key)
+        } else {
+            UserDefaults.standard.set(url.absoluteString, forKey: key)
+        }
+    }
+
+    static func displayName(of url: URL) -> String { ServerAddress.displayName(of: url) }
 }
