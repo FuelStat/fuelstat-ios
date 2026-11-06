@@ -106,6 +106,24 @@ in a tagged release, when a release PR is merged but its tag is missing, or
 when the app depends on a backend change that is merged but not yet released
 and deployed. Only create or push tags when the maintainer explicitly asks.
 
+## Checklist for every PR
+
+Check before opening the PR, and remind the maintainer at the end of a task of
+anything still missing:
+
+- **Feature reference:** items in #15 ticked off (with a link to the PR) or
+  added when the web app gained something new.
+- **README:** section "Current state" matches what the app can do.
+- **API gaps:** anything the app needs but the API does not provide has an
+  issue in FuelStat/fuelstat (no workaround calculations in the app); the PR
+  names it.
+- **Backend dependency:** if the PR relies on a backend change, that change is
+  merged, released (tag) and deployed – check `GET /api/v1/health` – before the
+  app release that needs it.
+- **Strings:** new user-facing text is in `Localizable.xcstrings` (German).
+- **Design:** new screens and components follow `docs/design.md`.
+- **Tests:** new logic in `FuelstatCore` has tests; CI is green.
+
 ## Workflow
 
 - Branch per feature, PR into `main`; reference the issue (`Fixes #5`) and,
