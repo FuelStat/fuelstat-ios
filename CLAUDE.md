@@ -70,6 +70,42 @@ toolchain is installed), and rely on the CI workflow (`.github/workflows/ci.yml`
 macOS runner) for the app build. Say so in the PR instead of claiming a local
 build.
 
+## Release process
+
+The app has its own version, independent of the web app/API version.
+
+- `MARKETING_VERSION` (e.g. `0.1.0`, Semantic Versioning, `0.x` during the
+  beta) is what users see; `CURRENT_PROJECT_VERSION` is the build number and
+  must increase with every build that leaves a developer's machine (TestFlight,
+  App Store). Both are set in `Fuelstat.xcodeproj` (Debug and Release).
+- **App releases do not bump the backend.** If a release needs a new API
+  feature, the backend release (FuelStat/fuelstat, `docs/betrieb.md`) must be
+  tagged and deployed first; say so in the release notes.
+
+Steps:
+
+1. Feature PRs keep the README section "Current state" up to date.
+2. **Prepare** a release PR: bump `MARKETING_VERSION` and
+   `CURRENT_PROJECT_VERSION`, update the README, run the tests and the CI build.
+3. **Merge** the PR.
+4. **Tag** the merged `main` and create the GitHub release (no workflow yet –
+   create it on GitHub from the tag, notes = what changed for users, marked
+   as pre-release while `0.x`):
+
+   ```sh
+   git tag -a vX.Y.Z -m "Fuelstat iOS X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+5. **Distribute:** with the free developer account only by running from Xcode
+   on the device (valid 7 days). TestFlight and App Store need the paid
+   program, see #12.
+
+**Remind the maintainer** at the end of a task when merged changes are not yet
+in a tagged release, when a release PR is merged but its tag is missing, or
+when the app depends on a backend change that is merged but not yet released
+and deployed. Only create or push tags when the maintainer explicitly asks.
+
 ## Workflow
 
 - Branch per feature, PR into `main`; reference the issue (`Fixes #5`) and,
