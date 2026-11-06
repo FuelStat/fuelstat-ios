@@ -49,37 +49,44 @@ struct RemoteVehicleFormView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Name, z. B. Familienauto", text: $name)
+                    textRow("Name", prompt: "z. B. Familienauto", text: $name)
                     Picker("Kraftstoff", selection: $fuelType) {
                         ForEach(RemoteFuelType.allCases) { Text($0.label).tag($0) }
                     }
                 }
+                .listRowBackground(Theme.card)
 
                 Section("Allgemein") {
-                    TextField("Marke", text: $brand)
-                    TextField("Modell", text: $model)
-                    TextField("Baujahr", value: $year, format: .number.grouping(.never))
-                        .keyboardType(.numberPad)
+                    textRow("Marke", prompt: "z. B. VW", text: $brand)
+                    textRow("Modell", prompt: "z. B. Golf", text: $model)
+                    LabeledContent("Baujahr") {
+                        TextField("Baujahr", value: $year, format: .number.grouping(.never), prompt: Text("z. B. 2020"))
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
+                .listRowBackground(Theme.card)
 
                 Section("Zulassung") {
-                    TextField("Kennzeichen", text: $licensePlate)
+                    textRow("Kennzeichen", prompt: "z. B. B-AB 123", text: $licensePlate)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .onChange(of: licensePlate) { licensePlate = String(licensePlate.prefix(15)) }
-                    TextField("FIN", text: $vin)
+                    textRow("FIN", prompt: "17 Zeichen", text: $vin)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .onChange(of: vin) { vin = String(vin.replacingOccurrences(of: " ", with: "").prefix(17)) }
                     Toggle("Erstzulassung angeben", isOn: $hasFirstRegistration)
+                        .tint(Theme.brand)
                     if hasFirstRegistration {
                         DatePicker("Erstzulassung", selection: $firstRegistration, in: ...Date.now,
                                    displayedComponents: .date)
                     }
                 }
+                .listRowBackground(Theme.card)
 
                 Section {
-                    numberField("Kilometerstand", unit: "km", value: $odometerKm)
+                    numberField("Kilometerstand bei Anschaffung", unit: "km", value: $odometerKm)
                     numberField(LocalizedStringKey(fuelType.tankCapacityLabel), unit: fuelType.tankCapacityUnit,
                                 value: $tankCapacity)
                     if fuelType.hasSeparateBattery {
@@ -90,14 +97,16 @@ struct RemoteVehicleFormView: View {
                 } footer: {
                     Text("Der Kilometerstand bei Anschaffung ist die Basis für die Fahrleistung.")
                 }
+                .listRowBackground(Theme.card)
 
                 if let errorMessage {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.Status.overdue)
                     }
                 }
             }
+            .themedBackground()
             .navigationTitle(editing == nil ? "Neues Fahrzeug" : "Fahrzeug bearbeiten")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -117,13 +126,24 @@ struct RemoteVehicleFormView: View {
         }
     }
 
+    /// Field with a visible label on the left; the prompt is only an example.
+    private func textRow(_ title: LocalizedStringKey, prompt: LocalizedStringKey, text: Binding<String>) -> some View {
+        LabeledContent(title) {
+            TextField(title, text: text, prompt: Text(prompt))
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
     private func numberField(_ title: LocalizedStringKey, unit: String, value: Binding<Double?>) -> some View {
-        HStack {
-            TextField(title, value: value, format: .number)
-                .keyboardType(.decimalPad)
-            Text(unit)
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
+        LabeledContent(title) {
+            HStack(spacing: Theme.Spacing.xxs) {
+                TextField(title, value: value, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                Text(unit)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
         }
     }
 

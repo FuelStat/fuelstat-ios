@@ -33,7 +33,7 @@ private struct RootView: View {
             LoginView()
         case .signedIn(let user):
             // A new list per user, so no vehicles of a previous account remain.
-            RemoteVehicleListView()
+            MainTabView()
                 .id(user.id)
         }
     }

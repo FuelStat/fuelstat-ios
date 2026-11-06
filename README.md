@@ -47,10 +47,22 @@ Data is stored locally with SwiftData.
 The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
 self-hosted servers can be entered on the sign-in screen):
 
+- Design from `docs/design.md`: colour tokens in the asset catalog (light and
+  dark), shared components in `Fuelstat/Design/`
+- Tabs Start · Einträge · Statistik · Profil with a central "+" for quick entry;
+  vehicle switcher at the top, the choice is remembered
+- Start: vehicle hero, key figures, due dates (`/reminders`), cheapest nearby
+  station, latest entries
+- Einträge: fill-ups grouped by month, search by station, filter chips for
+  plug-in hybrids, more entries load while scrolling, swipe to delete
+- Statistik: key figures and consumption per fill-up (segments from `/stats`)
+  as a chart
+- Profil: account, vehicle management, sign out, app and server version
+- Welcome screen, sign-in with labelled fields, 2FA as six digit boxes
+  (one-time-code autofill), own server under "Eigener Server"
 - Sign in / register (incl. 2FA code), token stored in the Keychain, renewed
   once a day while the app is used (`/auth/refresh`), sign out revokes it
-- Vehicle list with photo, fuel type and current odometer
-- Vehicle page with key figures (`/stats`), latest fill-ups, master data
+- Vehicle page with photo, key figures, due dates, entries, chart and master data
 - Create, edit and delete vehicles; plan limits from the API are shown as a message
 - Record fill-ups and charging sessions: last vehicle and last price prefilled,
   any two of amount, price per unit and total give the third, odometer warnings

@@ -64,3 +64,6 @@ fastlane/test_output
 # SwiftPM build output
 .build/
 .swiftpm/
+
+## macOS
+.DS_Store

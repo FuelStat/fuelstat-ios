@@ -28,6 +28,11 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     }
 
+    /// True when the user already allowed location access, so asking for the location shows no prompt.
+    var isAuthorized: Bool {
+        [.authorizedWhenInUse, .authorizedAlways].contains(manager.authorizationStatus)
+    }
+
     func currentLocation() async throws -> CLLocation {
         if manager.authorizationStatus == .notDetermined {
             await withCheckedContinuation { authorization = $0; manager.requestWhenInUseAuthorization() }
