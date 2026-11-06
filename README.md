@@ -40,7 +40,17 @@ A first, offline-only version:
 - Statistics per vehicle: average consumption (full-tank method),
   cost per km, average price per unit, total cost, tracked distance
 
-Data is stored locally with SwiftData. The Fuelstat API integration will follow.
+Data is stored locally with SwiftData.
+
+### Fuelstat API (in progress)
+
+The app now talks to the Fuelstat API (`https://tanken.1emc.de/api/v1`):
+
+- Sign in / register (incl. 2FA code), token stored in the Keychain, sign out
+- Vehicle list, vehicle master data (no statistics yet) and creating vehicles
+
+The offline views from v0.1 are currently not shown; their code stays for the
+upcoming fill-up and statistics screens.
 
 ### Project structure
 
