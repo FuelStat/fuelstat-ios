@@ -11,6 +11,7 @@ struct RemoteVehicleDetailView: View {
     @State private var fillups: [RemoteFillup] = []
     @State private var errorMessage: String?
     @State private var showingEdit = false
+    @State private var showingFillup = false
     @State private var confirmingDelete = false
     @State private var isWorking = false
     @State private var photoItem: PhotosPickerItem?
@@ -62,6 +63,9 @@ struct RemoteVehicleDetailView: View {
         .task { await load() }
         .sheet(isPresented: $showingEdit) {
             RemoteVehicleFormView(store: store, editing: vehicle)
+        }
+        .sheet(isPresented: $showingFillup, onDismiss: { Task { await load() } }) {
+            FillupEntryView(store: store, vehicleID: vehicle.id)
         }
         .confirmationDialog("„\(vehicle.name)“ löschen?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Fahrzeug und alle Einträge löschen", role: .destructive) { delete() }
@@ -144,6 +148,10 @@ struct RemoteVehicleDetailView: View {
     @ViewBuilder
     private func recentFillups(_ vehicle: RemoteVehicle) -> some View {
         Section("Letzte Einträge") {
+            Button(vehicle.fuelType == .electric ? "Laden erfassen" : "Tanken erfassen",
+                   systemImage: vehicle.fuelType == .electric ? "bolt.fill" : "fuelpump.fill") {
+                showingFillup = true
+            }
             if fillups.isEmpty {
                 Text("Noch keine Tank- oder Ladevorgänge.")
                     .foregroundStyle(.secondary)

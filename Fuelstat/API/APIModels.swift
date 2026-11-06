@@ -314,3 +314,121 @@ extension KeyedDecodingContainer {
         return nil
     }
 }
+
+// MARK: - Fill-ups
+
+/// Body for `POST /api/v1/fillups`.
+struct FillupInput: Encodable {
+    var vehicleId: String
+    /// `l`, `kwh` or `kg`
+    var unit: String
+    var amount: Double
+    var totalCostEur: Double
+    var odometerKm: Int?
+    var station: String?
+    var filledAt: Date
+    var isFull: Bool
+    /// The previous fill-up was not recorded: consumption is not calculated across the gap.
+    var skipPrevious: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case vehicleId, unit, amount, totalCostEur, odometerKm, station, filledAt, isFull, skipPrevious
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(vehicleId, forKey: .vehicleId)
+        try c.encode(unit, forKey: .unit)
+        try c.encode(amount, forKey: .amount)
+        try c.encode(totalCostEur, forKey: .totalCostEur)
+        try c.encodeIfPresent(odometerKm, forKey: .odometerKm)
+        try c.encodeIfPresent(station, forKey: .station)
+        try c.encode(ISO8601DateFormatter().string(from: filledAt), forKey: .filledAt)
+        try c.encode(isFull, forKey: .isFull)
+        try c.encode(skipPrevious, forKey: .skipPrevious)
+    }
+}
+
+/// Response of `POST /api/v1/fillups`: the API saves implausible odometer readings but warns about them.
+struct FillupCreated: Decodable {
+    struct Warning: Decodable {
+        let code: String
+        let message: String?
+    }
+
+    let id: String
+    let warnings: [Warning]
+
+    enum CodingKeys: String, CodingKey { case id, warnings }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        warnings = (try? c.decodeIfPresent([Warning].self, forKey: .warnings)) ?? []
+    }
+}
+
+extension RemoteFuelType {
+    /// Units a fill-up of this vehicle can have: plug-in hybrids are either fuelled (litres) or charged (kWh).
+    var fillupUnits: [String] {
+        switch self {
+        case .electric: ["kwh"]
+        case .cng, .hydrogen: ["kg"]
+        case .phev: ["l", "kwh"]
+        default: ["l"]
+        }
+    }
+
+    /// Fuel type for the Tankerkönig search, or nil where Tankerkönig has no prices (electricity, gas, hydrogen).
+    func stationSearchType(unit: String) -> String? {
+        guard unit == "l" else { return nil }
+        switch self {
+        case .e5: return "e5"
+        case .e10: return "e10"
+        case .diesel: return "diesel"
+        case .lpg: return nil
+        default: return "all"
+        }
+    }
+}
+
+// MARK: - Stations
+
+/// Fuel station from `GET /api/v1/stations` (data: Tankerkönig, CC BY 4.0).
+struct RemoteStation: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let brand: String?
+    let street: String?
+    let houseNumber: String?
+    let postCode: String?
+    let place: String?
+    let distanceKm: Double?
+    let isOpen: Bool
+    let prices: [String: Double?]
+
+    /// Price for the searched fuel type; for a search over all types the petrol price, otherwise diesel.
+    func price(for type: String) -> Double? {
+        if type == "all" {
+            return (prices["e10"] ?? nil) ?? (prices["e5"] ?? nil) ?? (prices["diesel"] ?? nil)
+        }
+        return prices[type] ?? nil
+    }
+
+    var address: String {
+        let streetLine = [street, houseNumber].compactMap { $0 }.joined(separator: " ")
+        let placeLine = [postCode, place].compactMap { $0 }.joined(separator: " ")
+        return [streetLine, placeLine].filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+
+    /// Text stored as `station` of the fill-up, e.g. "JET, Mustergasse 1, Berlin".
+    var label: String {
+        let title = brand.map { brand in name.localizedCaseInsensitiveContains(brand) ? name : "\(brand) \(name)" } ?? name
+        let streetLine = [street, houseNumber].compactMap { $0 }.joined(separator: " ")
+        return [title, streetLine, place].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+}
+
+struct StationsResponse: Decodable {
+    let stations: [RemoteStation]
+}

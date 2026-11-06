@@ -33,7 +33,14 @@ enum APIError: LocalizedError, Equatable {
             case "vehicle_not_found": String(localized: "Das Fahrzeug gibt es nicht mehr.")
             case "missing_file", "invalid_image": String(localized: "Das Bild konnte nicht verarbeitet werden.")
             case "http_413": String(localized: "Das Bild ist zu groß.")
-            case "http_429": String(localized: "Zu viele Anfragen. Bitte warte kurz.")
+            case "http_429", "too_many_requests": String(localized: "Zu viele Anfragen. Bitte warte kurz.")
+            case "invalid_amount": String(localized: "Die Menge ist ungültig.")
+            case "invalid_totalCostEur": String(localized: "Der Betrag ist ungültig.")
+            case "invalid_filledAt": String(localized: "Das Datum ist ungültig.")
+            case "invalid_unit": String(localized: "Die Einheit passt nicht zum Fahrzeug.")
+            case "stations_not_configured":
+                String(localized: "Die Tankstellensuche ist auf diesem Server nicht eingerichtet.")
+            case "stations_unavailable": String(localized: "Tankerkönig ist gerade nicht erreichbar.")
             default: String(localized: "Serverfehler (\(code)).")
             }
         case .invalidResponse:
@@ -149,6 +156,22 @@ struct APIClient {
     func fillups(vehicleID: String, limit: Int, token: String) async throws -> [RemoteFillup] {
         try await send("vehicles/\(vehicleID)/fillups", query: [URLQueryItem(name: "limit", value: String(limit))],
                        token: token)
+    }
+
+    func createFillup(_ input: FillupInput, token: String) async throws -> FillupCreated {
+        try await send("fillups", method: "POST", body: input, token: token)
+    }
+
+    /// Fuel stations near a location with current prices (Tankerkönig via the Fuelstat API).
+    func stations(latitude: Double, longitude: Double, radiusKm: Int, type: String, token: String) async throws
+        -> [RemoteStation] {
+        let response: StationsResponse = try await send("stations", query: [
+            URLQueryItem(name: "lat", value: String(format: "%.5f", latitude)),
+            URLQueryItem(name: "lng", value: String(format: "%.5f", longitude)),
+            URLQueryItem(name: "radius", value: String(radiusKm)),
+            URLQueryItem(name: "type", value: type),
+        ], token: token)
+        return response.stations
     }
 
     /// Uploads a JPEG as vehicle photo. The server scales it down, strips metadata and stores it as WebP.

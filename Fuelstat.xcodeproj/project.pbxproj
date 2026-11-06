@@ -194,6 +194,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Fuelstat;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Damit du ein Foto deines Fahrzeugs aufnehmen kannst.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Damit Fuelstat beim Tanken Tankstellen in deiner Nähe mit aktuellen Preisen vorschlagen kann.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -224,6 +225,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Fuelstat;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Damit du ein Foto deines Fahrzeugs aufnehmen kannst.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Damit Fuelstat beim Tanken Tankstellen in deiner Nähe mit aktuellen Preisen vorschlagen kann.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

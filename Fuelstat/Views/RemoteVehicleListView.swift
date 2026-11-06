@@ -23,6 +23,7 @@ private struct VehicleList: View {
     @Environment(AuthSession.self) private var auth
     @Bindable var store: VehicleStore
     @State private var showingAddVehicle = false
+    @State private var showingFillup = false
 
     var body: some View {
         NavigationStack {
@@ -63,10 +64,27 @@ private struct VehicleList: View {
                 }
             }
             .overlay { overlay }
+            .safeAreaInset(edge: .bottom) {
+                if !store.vehicles.isEmpty {
+                    Button {
+                        showingFillup = true
+                    } label: {
+                        Label("Tanken erfassen", systemImage: "fuelpump.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
+            }
             .refreshable { await store.load() }
             .task { await store.load() }
             .sheet(isPresented: $showingAddVehicle) {
                 RemoteVehicleFormView(store: store)
+            }
+            .sheet(isPresented: $showingFillup) {
+                FillupEntryView(store: store)
             }
         }
     }
