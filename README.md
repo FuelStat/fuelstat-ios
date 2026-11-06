@@ -52,6 +52,11 @@ self-hosted servers can be entered on the sign-in screen):
 - Vehicle list with photo, fuel type and current odometer
 - Vehicle page with key figures (`/stats`), latest fill-ups, master data
 - Create, edit and delete vehicles; plan limits from the API are shown as a message
+- Record fill-ups and charging sessions: last vehicle and last price prefilled,
+  any two of amount, price per unit and total give the third, odometer warnings
+  from the API are shown
+- Nearby fuel stations with current prices (Tankerkönig via `GET /api/v1/stations`,
+  needs `TANKERKOENIG_API_KEY` on the server)
 - Vehicle photo from the camera or photo library; images are cached on the device
   by file name, because the signed image URLs change daily
 

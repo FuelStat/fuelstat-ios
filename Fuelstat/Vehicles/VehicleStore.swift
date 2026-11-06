@@ -113,6 +113,38 @@ final class VehicleStore {
         try await auth.call { try await $0.fillups(vehicleID: id, limit: limit, token: $1) }
     }
 
+    /// Saves a fill-up and refreshes the vehicle's key figures. Returns the API's odometer warnings.
+    func addFillup(_ input: FillupInput) async throws -> [String] {
+        let created = try await auth.call { try await $0.createFillup(input, token: $1) }
+        UserDefaults.standard.set(input.vehicleId, forKey: Self.lastVehicleKey)
+        if let figures = try? await auth.call({ try await $0.stats(vehicleID: input.vehicleId, token: $1) }) {
+            stats[input.vehicleId] = figures
+        }
+        return created.warnings.compactMap(\.message)
+    }
+
+    /// Price per unit of the latest fill-up with this unit, as a default for the next one.
+    func lastPrice(of id: String, unit: String) async -> Double? {
+        guard let recent = try? await fillups(of: id, limit: 10) else { return nil }
+        return recent.first { $0.unit == unit && $0.amount > 0 }.flatMap { fillup in
+            fillup.totalCostEur.map { $0 / fillup.amount }
+        }
+    }
+
+    func stations(near latitude: Double, _ longitude: Double, type: String) async throws -> [RemoteStation] {
+        try await auth.call {
+            try await $0.stations(latitude: latitude, longitude: longitude, radiusKm: 5, type: type, token: $1)
+        }
+    }
+
+    /// The vehicle used for the last fill-up, as default for the next one.
+    var lastUsedVehicleID: String? {
+        let id = UserDefaults.standard.string(forKey: Self.lastVehicleKey)
+        return vehicles.contains { $0.id == id } ? id : vehicles.first?.id
+    }
+
+    private static let lastVehicleKey = "fillup.lastVehicleID"
+
     private func replace(_ vehicle: RemoteVehicle) {
         if let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
             vehicles[index] = vehicle
