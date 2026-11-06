@@ -27,7 +27,7 @@ expense management platform.
 The application uses the Fuelstat REST API.
 
 Backend repository:
-https://github.com/DEINE-ORGANIZATION/fuelstat
+https://github.com/FuelStat/fuelstat
 
 ## Development
 
