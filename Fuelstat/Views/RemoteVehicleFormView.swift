@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Sheet to create a vehicle via the Fuelstat API.
+/// Sheet to create a vehicle, or to change one when `editing` is set.
 struct RemoteVehicleFormView: View {
-    @Environment(AuthSession.self) private var auth
-    @Environment(\.dismiss) private var dismiss
+    let store: VehicleStore
+    var editing: RemoteVehicle?
 
-    var onCreated: (RemoteVehicle) -> Void
+    @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
     @State private var fuelType: RemoteFuelType = .e10
@@ -22,6 +22,26 @@ struct RemoteVehicleFormView: View {
 
     @State private var isSaving = false
     @State private var errorMessage: String?
+
+    init(store: VehicleStore, editing: RemoteVehicle? = nil) {
+        self.store = store
+        self.editing = editing
+        guard let vehicle = editing else { return }
+        _name = State(initialValue: vehicle.name)
+        _fuelType = State(initialValue: vehicle.fuelType)
+        _brand = State(initialValue: vehicle.brand ?? "")
+        _model = State(initialValue: vehicle.model ?? "")
+        _year = State(initialValue: vehicle.year)
+        _licensePlate = State(initialValue: vehicle.licensePlate ?? "")
+        _vin = State(initialValue: vehicle.vin ?? "")
+        if let date = vehicle.firstRegistration.flatMap(Self.parseAPIDate) {
+            _hasFirstRegistration = State(initialValue: true)
+            _firstRegistration = State(initialValue: date)
+        }
+        _odometerKm = State(initialValue: vehicle.odometerKm)
+        _tankCapacity = State(initialValue: vehicle.tankCapacity)
+        _batteryCapacity = State(initialValue: vehicle.batteryCapacity)
+    }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
 
@@ -60,7 +80,8 @@ struct RemoteVehicleFormView: View {
 
                 Section {
                     numberField("Kilometerstand", unit: "km", value: $odometerKm)
-                    numberField(fuelType.tankCapacityLabel, unit: fuelType.tankCapacityUnit, value: $tankCapacity)
+                    numberField(LocalizedStringKey(fuelType.tankCapacityLabel), unit: fuelType.tankCapacityUnit,
+                                value: $tankCapacity)
                     if fuelType.hasSeparateBattery {
                         numberField("Akkukapazität", unit: "kWh", value: $batteryCapacity)
                     }
@@ -77,7 +98,7 @@ struct RemoteVehicleFormView: View {
                     }
                 }
             }
-            .navigationTitle("Neues Fahrzeug")
+            .navigationTitle(editing == nil ? "Neues Fahrzeug" : "Fahrzeug bearbeiten")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -96,17 +117,18 @@ struct RemoteVehicleFormView: View {
         }
     }
 
-    private func numberField(_ title: String, unit: String, value: Binding<Double?>) -> some View {
+    private func numberField(_ title: LocalizedStringKey, unit: String, value: Binding<Double?>) -> some View {
         HStack {
             TextField(title, value: value, format: .number)
                 .keyboardType(.decimalPad)
-            Text(unit).foregroundStyle(.secondary)
+            Text(unit)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
     }
 
     private func save() {
-        guard let token = auth.token else { return }
-        let request = VehicleCreateRequest(
+        let input = VehicleInput(
             name: trimmedName,
             fuelType: fuelType,
             brand: Self.nonEmpty(brand),
@@ -124,11 +146,12 @@ struct RemoteVehicleFormView: View {
         Task {
             defer { isSaving = false }
             do {
-                let vehicle = try await auth.api.createVehicle(request, token: token)
-                onCreated(vehicle)
+                if let editing {
+                    try await store.update(editing.id, input)
+                } else {
+                    try await store.create(input)
+                }
                 dismiss()
-            } catch APIError.unauthorized {
-                auth.handleUnauthorized()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -145,9 +168,16 @@ struct RemoteVehicleFormView: View {
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
+
+    /// `YYYY-MM-DD` as a date at noon in the user's time zone, so the date picker shows the same day.
+    private static func parseAPIDate(_ text: String) -> Date? {
+        let parts = text.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 12))
+    }
 }
 
 #Preview {
-    RemoteVehicleFormView { _ in }
+    RemoteVehicleFormView(store: VehicleStore(auth: AuthSession()))
         .environment(AuthSession())
 }

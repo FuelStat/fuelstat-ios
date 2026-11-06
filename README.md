@@ -44,10 +44,16 @@ Data is stored locally with SwiftData.
 
 ### Fuelstat API (in progress)
 
-The app now talks to the Fuelstat API (`https://tanken.1emc.de/api/v1`):
+The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
+self-hosted servers can be entered on the sign-in screen):
 
-- Sign in / register (incl. 2FA code), token stored in the Keychain, sign out
-- Vehicle list, vehicle master data (no statistics yet) and creating vehicles
+- Sign in / register (incl. 2FA code), token stored in the Keychain, renewed
+  once a day while the app is used (`/auth/refresh`), sign out revokes it
+- Vehicle list with photo, fuel type and current odometer
+- Vehicle page with key figures (`/stats`), latest fill-ups, master data
+- Create, edit and delete vehicles; plan limits from the API are shown as a message
+- Vehicle photo from the camera or photo library; images are cached on the device
+  by file name, because the signed image URLs change daily
 
 The offline views from v0.1 are currently not shown; their code stays for the
 upcoming fill-up and statistics screens.
@@ -56,7 +62,11 @@ upcoming fill-up and statistics screens.
 
 - `Fuelstat.xcodeproj` – iOS app (SwiftUI, iOS 17+)
 - `Fuelstat/` – app sources (models, views)
-- `Packages/FuelstatCore` – platform-independent logic (consumption calculation) with tests
+- `Packages/FuelstatCore` – platform-independent logic (consumption calculation,
+  server address parsing, image cache keys) with tests
+
+The UI is in German. Strings are localizable (`Localizable.xcstrings`); Xcode
+fills the catalog when the app is built in the IDE.
 
 ### Build & test
 
