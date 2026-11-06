@@ -40,7 +40,17 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: swift
-          build-mode: none
+          # Swift does not support build-mode "none"; CodeQL traces this build.
+          build-mode: manual
+
+      - name: Build app
+        run: |
+          xcodebuild build \
+            -project Fuelstat.xcodeproj \
+            -scheme Fuelstat \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
