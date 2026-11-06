@@ -8,7 +8,7 @@ and interaction side only.
 
 **Calm, card-based, photo-forward, one strong colour.** The inspiration came from
 mobility and car app concepts (soft lavender-grey backgrounds, large rounded
-cards, a deep navy/indigo brand colour, big vehicle photos, chips and bottom
+cards, one strong brand colour on a dark navy anchor, big vehicle photos, chips and bottom
 sheets). We take the *principles*, not the layouts or assets of those shots,
 and apply them to what Fuelstat is: a personal vehicle companion, not a shop or
 rental app. There is no "Buy", "Book now", brand grid, ratings or chat.
@@ -101,8 +101,9 @@ Tab bar with four tabs and a central log action:
   icons for chargers. The current location button sits top right.
 
 ### Onboarding, sign-in, 2FA
-- Welcome: one full-colour brand screen (brand colour background, white text,
-  vehicle illustration), then "Anmelden" / "Konto erstellen".
+- Welcome: one full-colour brand screen in both modes: navy `#0A1C33`
+  background like the app icon, white text, teal accents, the gauge motif of
+  the icon as illustration; then "Anmelden" / "Konto erstellen".
 - Sign-in and registration on a plain background: title, short subtitle,
   fields with visible labels, primary button, secondary link. Server address
   under "Eigener Server" (collapsed).
@@ -115,38 +116,48 @@ Tab bar with four tabs and a central log action:
 
 ### Colour
 
-One brand colour, one dark anchor, otherwise neutral. Define everything as named
-colours in the asset catalog with light and dark variants; never hard-code hex
-values in views.
+One brand colour, one dark anchor, otherwise neutral. The palette comes from
+the app icon: the **petrol/teal of the car** is the brand colour, the **navy of
+the icon background** is the dark anchor, and the **gauge scale** (green →
+yellow → orange) supplies the status colours. Petrol sits between blue
+(technology, trust) and green (electricity, saving) and therefore fits an app
+for combustion *and* electric vehicles; pure green stays free for status and
+electricity.
+
+Define everything as named colours in the asset catalog with light and dark
+variants; never hard-code hex values in views.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `Brand` | indigo `#4B3FE0` | `#8B83FF` | Primary buttons, "+", selected chips, links |
-| `BrandDeep` | navy `#1C1F4A` | `#E6E7F5` | Hero headers, tab bar selection, headings on tinted areas |
-| `Background` | `#F4F4FA` (soft lavender-grey) | system background | Screen background |
-| `Card` | white | `#1C1C24` | Cards, sheets |
-| `CardTint` | `#ECEBFB` | `#2A2840` | Stat tiles, icon circles, unselected chips |
-| `OnBrand` | white | `#14123A` | Text and icons on `Brand` fills (white on the dark-mode brand colour would only reach 3.1:1) |
+| `Brand` | petrol `#0A717A` | teal `#5ED3CF` | Primary buttons, "+", selected chips, links |
+| `OnBrand` | white | navy `#0A1C33` | Text and icons on `Brand` fills (white on the light teal would be too weak) |
+| `BrandDeep` | navy `#0A1C33` | `#DCE8F5` | Hero headers, welcome screen, headings on tinted areas |
+| `Background` | `#F2F6F8` (cool light grey) | system background | Screen background |
+| `Card` | white | `#1A2230` | Cards, sheets |
+| `CardTint` | `#E2F1F2` | `#22303A` | Stat tiles, icon circles, unselected chips |
 
-Checked contrast: `Brand` on white 6.8:1, on `Background` 6.2:1, on `CardTint`
-5.8:1; dark `Brand` on `Card` 5.5:1, on `CardTint` 4.6:1; `OnBrand` on `Brand`
-6.8:1 (light) and 5.8:1 (dark).
+Checked contrast: `Brand` on white 5.7:1, on `Background` 5.3:1, on `CardTint`
+5.0:1; dark `Brand` on `Card` 8.9:1, on `CardTint` 7.5:1; `OnBrand` on `Brand`
+5.7:1 (light) and 9.5:1 (dark); `BrandDeep` on white 17:1, dark on `Card` 12.9:1.
+
+In dark mode the app should feel like the icon: navy surfaces with teal accents.
 
 Status and energy colours are semantic and always paired with an icon or text,
 never colour alone:
 
-- Status: `OK` green, `Bald fällig` amber, `Überfällig` red.
-- Energy: petrol, diesel, LPG/CNG, electricity, hydrogen each get a fixed tint
-  used for icons and chart series. The current green accent (`#0F883B`) becomes
-  the electricity/"positive" colour.
+- Status, taken from the gauge in the icon: `OK` green, `Bald fällig` yellow/amber,
+  `Überfällig` orange-red.
+- Energy, fixed per fuel type for icons and chart series: electricity green (the
+  former app accent `#0F883B`), petrol yellow, diesel orange, LPG/CNG blue,
+  hydrogen cyan. Choose the exact shades so each reaches 3:1 against `Card` in
+  both modes (yellow needs a darker shade in light mode).
 
 All text and icon colours must reach WCAG AA contrast (4.5:1 for text, 3:1 for
 large text and icons) in both modes. Several inspiration shots use tiny
 light-grey text – we do not.
 
-> Decision for the maintainer: the app currently uses a green accent. The
-> inspiration points to indigo/navy. This document assumes indigo as `Brand`;
-> if green should stay the brand colour, swap `Brand` and keep the rest.
+The web app should move to the same tokens over time so both clients look like
+one product.
 
 ### Shape and spacing
 
