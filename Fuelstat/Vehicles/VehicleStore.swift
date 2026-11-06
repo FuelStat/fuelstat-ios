@@ -64,6 +64,12 @@ final class VehicleStore {
         vehicles.first { $0.id == id }
     }
 
+    /// The vehicle chosen in the switcher, falling back to the one of the last fill-up.
+    func resolvedSelection(_ id: String?) -> String? {
+        if let id, vehicle(id) != nil { return id }
+        return lastUsedVehicleID
+    }
+
     /// Current odometer: the latest reading from the fill-ups, otherwise the value entered for the vehicle.
     func currentOdometer(of vehicle: RemoteVehicle) -> Double? {
         stats[vehicle.id]?.currentOdometerKm ?? vehicle.odometerKm
@@ -111,6 +117,34 @@ final class VehicleStore {
 
     func fillups(of id: String, limit: Int) async throws -> [RemoteFillup] {
         try await auth.call { try await $0.fillups(vehicleID: id, limit: limit, token: $1) }
+    }
+
+    func fillups(of id: String, limit: Int, offset: Int) async throws -> [RemoteFillup] {
+        try await auth.call { try await $0.fillups(vehicleID: id, limit: limit, offset: offset, token: $1) }
+    }
+
+    /// Deletes a fill-up and refreshes the vehicle's key figures.
+    func deleteFillup(_ fillupID: String, of vehicleID: String) async throws {
+        try await auth.call { try await $0.deleteFillup(id: fillupID, token: $1) }
+        if let figures = try? await auth.call({ try await $0.stats(vehicleID: vehicleID, token: $1) }) {
+            stats[vehicleID] = figures
+        }
+    }
+
+    /// Due dates, most urgent first: overdue, soon, then by days left.
+    func reminders(of id: String) async throws -> [RemoteReminder] {
+        let list = try await auth.call { try await $0.reminders(vehicleID: id, token: $1) }
+        func rank(_ status: RemoteReminder.Status) -> Int {
+            switch status {
+            case .overdue: 0
+            case .soon: 1
+            case .ok: 2
+            case .unknown: 3
+            }
+        }
+        return list.sorted {
+            (rank($0.status), $0.days ?? .max) < (rank($1.status), $1.days ?? .max)
+        }
     }
 
     /// Saves a fill-up and refreshes the vehicle's key figures. Returns the API's odometer warnings.

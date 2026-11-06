@@ -158,6 +158,23 @@ struct APIClient {
                        token: token)
     }
 
+    /// Fill-ups, newest first. `offset` pages through older ones.
+    func fillups(vehicleID: String, limit: Int, offset: Int, token: String) async throws -> [RemoteFillup] {
+        try await send("vehicles/\(vehicleID)/fillups", query: [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset)),
+        ], token: token)
+    }
+
+    func deleteFillup(id: String, token: String) async throws {
+        let _: EmptyResponse = try await send("fillups/\(id)", method: "DELETE", token: token)
+    }
+
+    /// Due dates (TÜV, service, insurance, tax) with their status, as calculated by the API.
+    func reminders(vehicleID: String, token: String) async throws -> [RemoteReminder] {
+        try await send("vehicles/\(vehicleID)/reminders", token: token)
+    }
+
     func createFillup(_ input: FillupInput, token: String) async throws -> FillupCreated {
         try await send("fillups", method: "POST", body: input, token: token)
     }

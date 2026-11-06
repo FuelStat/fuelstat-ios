@@ -1,7 +1,7 @@
 import PhotosUI
 import SwiftUI
 
-/// Vehicle page: photo, key figures, latest fill-ups and master data.
+/// Vehicle page: full-width photo with a sheet-style card over it; segments Übersicht · Einträge · Statistik · Daten.
 struct RemoteVehicleDetailView: View {
     let vehicleID: String
     @Bindable var store: VehicleStore
@@ -17,8 +17,13 @@ struct RemoteVehicleDetailView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var showingPhotoLibrary = false
     @State private var showingCamera = false
+    @State private var segment: Segment = .overview
+    @State private var chartRange: ConsumptionChartCard.Range = .year
+    @State private var reminders: [RemoteReminder] = []
 
     private static let recentCount = 5
+    /// Entries shown in the "Einträge" segment; the full list is in the Einträge tab.
+    private static let entriesCount = 30
 
     var body: some View {
         if let vehicle = store.vehicle(vehicleID) {
@@ -28,37 +33,74 @@ struct RemoteVehicleDetailView: View {
         }
     }
 
+    private enum Segment: Hashable {
+        case overview, entries, statistics, data
+    }
+
     private func content(_ vehicle: RemoteVehicle) -> some View {
-        List {
-            Section {
+        ScrollView {
+            VStack(spacing: 0) {
                 photoHeader(vehicle)
-                    .listRowInsets(EdgeInsets())
-            }
 
-            if let errorMessage {
-                Section {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
+                VStack(alignment: .leading, spacing: Theme.Spacing.cardGap) {
+                    Capsule()
+                        .fill(.secondary.opacity(0.4))
+                        .frame(width: 36, height: 5)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityHidden(true)
+
+                    titleBlock(vehicle)
+
+                    Picker("Ansicht", selection: $segment) {
+                        Text("Übersicht").tag(Segment.overview)
+                        Text("Einträge").tag(Segment.entries)
+                        Text("Statistik").tag(Segment.statistics)
+                        Text("Daten").tag(Segment.data)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(Theme.Status.overdue)
+                    }
+
+                    switch segment {
+                    case .overview: overview(vehicle)
+                    case .entries:
+                        RecentEntriesCard(fillups: fillups, fuelType: vehicle.fuelType)
+                    case .statistics:
+                        ConsumptionChartCard(stats: store.stats[vehicle.id], fuelType: vehicle.fuelType,
+                                             range: $chartRange)
+                    case .data:
+                        MasterDataCards(vehicle: vehicle, odometer: store.currentOdometer(of: vehicle))
+                        Button("Fahrzeug löschen", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+                            .disabled(isWorking)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, Theme.Spacing.s)
+                    }
                 }
-            }
-
-            keyFigures(vehicle)
-            recentFillups(vehicle)
-            masterData(vehicle)
-
-            Section {
-                Button("Fahrzeug löschen", systemImage: "trash", role: .destructive) { confirmingDelete = true }
-                    .disabled(isWorking)
+                .padding(.horizontal, Theme.Spacing.screen)
+                .padding(.top, Theme.Spacing.xs)
+                .padding(.bottom, Theme.Spacing.xl)
+                .background(
+                    UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.card, topTrailingRadius: Theme.Radius.card,
+                                           style: .continuous)
+                        .fill(Theme.background)
+                        .shadow(color: .black.opacity(0.12), radius: 10, y: -2)
+                )
+                .offset(y: -Theme.Radius.card)
             }
         }
-        .navigationTitle(vehicle.name)
-        .navigationBarTitleDisplayMode(.inline)
+        .background(Theme.background)
+        .ignoresSafeArea(edges: .top)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Bearbeiten") { showingEdit = true }
+                Button("Bearbeiten", systemImage: "pencil") { showingEdit = true }
                     .disabled(isWorking)
             }
         }
+        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
         .sheet(isPresented: $showingEdit) {
@@ -86,7 +128,10 @@ struct RemoteVehicleDetailView: View {
         ZStack(alignment: .bottomTrailing) {
             VehiclePhoto(url: store.imageURL(of: vehicle), fuelType: vehicle.fuelType)
                 .frame(maxWidth: .infinity)
-                .frame(height: 200)
+                .frame(height: 300)
+                .overlay {
+                    LinearGradient(colors: [.black.opacity(0.35), .clear], startPoint: .top, endPoint: .center)
+                }
 
             Menu {
                 Button("Foto auswählen", systemImage: "photo.on.rectangle") { showingPhotoLibrary = true }
@@ -104,98 +149,51 @@ struct RemoteVehicleDetailView: View {
                         Image(systemName: "camera.fill")
                     }
                 }
-                .padding(12)
+                .frame(width: 44, height: 44)
                 .background(.thinMaterial, in: Circle())
             }
             .disabled(isWorking)
-            .padding(12)
+            .padding(.trailing, Theme.Spacing.m)
+            .padding(.bottom, Theme.Radius.card + Theme.Spacing.s)
             .accessibilityLabel(vehicle.imageURL == nil ? "Foto hinzufügen" : "Foto ändern")
         }
     }
 
-    @ViewBuilder
-    private func keyFigures(_ vehicle: RemoteVehicle) -> some View {
-        let stats = store.stats[vehicle.id]
-        let unit = vehicle.fuelType.tankCapacityUnit
-        Section("Kennzahlen") {
-            row("Kilometerstand", store.currentOdometer(of: vehicle).map(Fmt.kilometres))
-            row("Ø Verbrauch", stats?.averageConsumption.map { "\(Fmt.number($0, digits: 2)) \(unit)/100 km" })
-            if let trend = stats?.trend {
-                LabeledContent("Letzte Tankfüllung") {
-                    HStack(spacing: 4) {
-                        Text("\(Fmt.number(trend.current, digits: 2)) \(unit)/100 km")
-                        if trend.diff != 0 {
-                            Image(systemName: trend.diff < 0 ? "arrow.down.right" : "arrow.up.right")
-                                .foregroundStyle(trend.diff < 0 ? .green : .orange)
-                                .accessibilityLabel(trend.diff < 0 ? "weniger als zuvor" : "mehr als zuvor")
-                        }
-                    }
+    private func titleBlock(_ vehicle: RemoteVehicle) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(vehicle.name)
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(Theme.brandDeep)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+            }
+            HStack(spacing: Theme.Spacing.xs) {
+                Label(vehicle.fuelType.label, systemImage: vehicle.fuelType.badgeSymbol)
+                    .foregroundStyle(vehicle.fuelType.energyColor)
+                if let plate = vehicle.licensePlate {
+                    Text(plate).foregroundStyle(.secondary)
+                }
+                if let odometer = store.currentOdometer(of: vehicle) {
+                    Text(Fmt.kilometres(odometer))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
             }
-            row("Ø Preis", stats?.averagePricePerUnit.map { "\(Fmt.pricePerUnit($0))/\(unit)" })
-            if stats == nil {
-                Text("Noch keine Auswertung. Sie erscheint nach den ersten vollen Tankfüllungen.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else if let missing = stats?.missingOdometer, missing > 0 {
-                Text("\(missing) Einträge ohne Kilometerstand zählen nicht für den Verbrauch.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+            .font(.subheadline.weight(.medium))
         }
     }
 
     @ViewBuilder
-    private func recentFillups(_ vehicle: RemoteVehicle) -> some View {
-        Section("Letzte Einträge") {
-            Button(vehicle.fuelType == .electric ? "Laden erfassen" : "Tanken erfassen",
-                   systemImage: vehicle.fuelType == .electric ? "bolt.fill" : "fuelpump.fill") {
-                showingFillup = true
-            }
-            if fillups.isEmpty {
-                Text("Noch keine Tank- oder Ladevorgänge.")
-                    .foregroundStyle(.secondary)
-            }
-            ForEach(fillups) { fillup in
-                FillupRow(fillup: fillup)
-            }
+    private func overview(_ vehicle: RemoteVehicle) -> some View {
+        KeyFigureTiles(vehicle: vehicle, stats: store.stats[vehicle.id], odometer: store.currentOdometer(of: vehicle))
+        PrimaryButton(title: vehicle.fuelType == .electric ? "Laden erfassen" : "Tanken erfassen",
+                      systemImage: vehicle.fuelType == .electric ? "bolt.fill" : "fuelpump.fill") {
+            showingFillup = true
         }
-    }
-
-    @ViewBuilder
-    private func masterData(_ vehicle: RemoteVehicle) -> some View {
-        Section("Allgemein") {
-            LabeledContent("Kraftstoff", value: vehicle.fuelType.label)
-            row("Marke", vehicle.brand)
-            row("Modell", vehicle.model)
-            row("Baujahr", vehicle.year.map(String.init))
-        }
-
-        if vehicle.licensePlate != nil || vehicle.vin != nil || vehicle.firstRegistration != nil {
-            Section("Zulassung") {
-                row("Kennzeichen", vehicle.licensePlate)
-                row("FIN", vehicle.vin)
-                row("Erstzulassung", vehicle.firstRegistration.flatMap(Self.formatDate))
-            }
-        }
-
-        if vehicle.odometerKm != nil || vehicle.tankCapacity != nil || vehicle.batteryCapacity != nil
-            || vehicle.tireSizeSummer != nil || vehicle.tireSizeWinter != nil {
-            Section("Technik") {
-                row("Kilometerstand bei Anschaffung", vehicle.odometerKm.map(Fmt.kilometres))
-                row(LocalizedStringKey(vehicle.fuelType.tankCapacityLabel),
-                    vehicle.tankCapacity.map { "\(Fmt.number($0)) \(vehicle.fuelType.tankCapacityUnit)" })
-                row("Akkukapazität", vehicle.batteryCapacity.map { "\(Fmt.number($0)) kWh" })
-                row("Reifen Sommer", vehicle.tireSizeSummer)
-                row("Reifen Winter", vehicle.tireSizeWinter)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func row(_ title: LocalizedStringKey, _ value: String?) -> some View {
-        if let value {
-            LabeledContent(title, value: value)
+        RemindersCard(reminders: reminders)
+        RecentEntriesCard(fillups: Array(fillups.prefix(Self.recentCount)), fuelType: vehicle.fuelType) {
+            segment = .entries
         }
     }
 
@@ -204,9 +202,11 @@ struct RemoteVehicleDetailView: View {
     private func load() async {
         do {
             async let reloaded = store.reload(vehicleID)
-            async let latest = store.fillups(of: vehicleID, limit: Self.recentCount)
+            async let latest = store.fillups(of: vehicleID, limit: Self.entriesCount)
+            async let due = try? store.reminders(of: vehicleID)
             _ = try await reloaded
             fillups = try await latest
+            reminders = await due ?? reminders
             errorMessage = nil
         } catch is CancellationError {
             return
@@ -254,46 +254,5 @@ struct RemoteVehicleDetailView: View {
                 errorMessage = error.localizedDescription
             }
         }
-    }
-
-    private static func formatDate(_ value: String) -> String? {
-        let parser = DateFormatter()
-        parser.calendar = Calendar(identifier: .gregorian)
-        parser.locale = Locale(identifier: "en_US_POSIX")
-        parser.timeZone = TimeZone(identifier: "UTC")
-        parser.dateFormat = "yyyy-MM-dd"
-        guard let date = parser.date(from: value) else { return value }
-        var style = Date.FormatStyle.dateTime.day().month().year()
-        style.timeZone = TimeZone(identifier: "UTC")!
-        return date.formatted(style)
-    }
-}
-
-private struct FillupRow: View {
-    let fillup: RemoteFillup
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(fillup.filledAt?.formatted(date: .abbreviated, time: .omitted) ?? "–")
-                if let odometer = fillup.odometerKm {
-                    Text(Fmt.kilometres(odometer))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(Fmt.number(fillup.amount, digits: 2)) \(fillup.unitLabel)")
-                if let cost = fillup.totalCostEur {
-                    Text(cost.formatted(.currency(code: "EUR")))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .monospacedDigit()
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(fillup.isFull ? "" : String(localized: "Teilfüllung"))
     }
 }

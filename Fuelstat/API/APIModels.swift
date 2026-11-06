@@ -232,12 +232,46 @@ struct VehicleStats: Decodable {
     /// Fill-ups without a real odometer reading.
     let missingOdometer: Int
     let trend: Trend?
+    /// Full-to-full segments with the consumption the API calculated for each.
+    let segments: [Segment]
+
+    /// Consumption between two full fill-ups, per 100 km in the segment's unit.
+    struct Segment: Decodable, Identifiable {
+        let id: String
+        let date: Date
+        let unit: String
+        let km: Double?
+        let per100Km: Double
+
+        enum CodingKeys: String, CodingKey {
+            case id = "full_id", date = "full_at", unit, km
+            case per100Km = "l_per_100km"
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            guard let date = c.text(.date).flatMap(APIDate.parse), let value = c.number(.per100Km) else {
+                throw DecodingError.dataCorrupted(.init(codingPath: c.codingPath, debugDescription: "segment"))
+            }
+            id = c.text(.id) ?? UUID().uuidString
+            self.date = date
+            unit = c.text(.unit) ?? "l"
+            km = c.number(.km)
+            per100Km = value
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
-        case currentOdo, avgConsumption, avgPricePerLiter, missingOdometer, trend
+        case currentOdo, avgConsumption, avgPricePerLiter, missingOdometer, trend, segments
     }
 
     enum TrendKeys: String, CodingKey { case current, diff }
+
+    /// Skips segments that cannot be read instead of failing the whole response.
+    private struct LossySegment: Decodable {
+        let value: Segment?
+        init(from decoder: Decoder) throws { value = try? Segment(from: decoder) }
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -251,6 +285,7 @@ struct VehicleStats: Decodable {
         } else {
             trend = nil
         }
+        segments = ((try? c.decodeIfPresent([LossySegment].self, forKey: .segments)) ?? []).compactMap(\.value)
     }
 }
 
@@ -263,7 +298,10 @@ struct RemoteFillup: Decodable, Identifiable {
     /// `l`, `kwh` or `kg`
     let unit: String
     let totalCostEur: Double?
+    let station: String?
     let isFull: Bool
+
+    var isCharging: Bool { unit == "kwh" }
 
     var unitLabel: String {
         switch unit {
@@ -274,7 +312,7 @@ struct RemoteFillup: Decodable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, amount, unit
+        case id, amount, unit, station
         case filledAt = "filled_at"
         case odometerKm = "odometer_km"
         case totalCostEur = "total_cost_eur"
@@ -289,13 +327,81 @@ struct RemoteFillup: Decodable, Identifiable {
         amount = c.number(.amount) ?? 0
         unit = c.text(.unit) ?? "l"
         totalCostEur = c.number(.totalCostEur)
+        station = c.text(.station)
         isFull = (try? c.decode(Bool.self, forKey: .isFull)) ?? true
     }
 
-    private static func parseDate(_ text: String) -> Date? {
+    private static func parseDate(_ text: String) -> Date? { APIDate.parse(text) }
+}
+
+enum APIDate {
+    /// ISO 8601 timestamp with or without fractional seconds.
+    static func parse(_ text: String) -> Date? {
         let withFraction = ISO8601DateFormatter()
         withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return withFraction.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+    }
+
+    /// Calendar date `YYYY-MM-DD` (also accepts a timestamp and uses its date part).
+    static func parseDay(_ text: String) -> Date? {
+        let parser = DateFormatter()
+        parser.calendar = Calendar(identifier: .gregorian)
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = TimeZone(identifier: "UTC")
+        parser.dateFormat = "yyyy-MM-dd"
+        return parser.date(from: String(text.prefix(10)))
+    }
+
+    /// Formats a calendar date from the API without shifting it by the device's time zone.
+    static func formatDay(_ date: Date) -> String {
+        var style = Date.FormatStyle.dateTime.day().month().year()
+        style.timeZone = TimeZone(identifier: "UTC")!
+        return date.formatted(style)
+    }
+}
+
+// MARK: - Reminders
+
+/// Due date from `GET /api/v1/vehicles/{id}/reminders`; status and dates are calculated by the API.
+struct RemoteReminder: Decodable, Identifiable {
+    enum Status: String {
+        case ok, soon = "bald", overdue = "ueberfaellig", unknown = "unbekannt"
+    }
+
+    let title: String
+    let category: String
+    let dueDate: Date?
+    let dueKm: Double?
+    let status: Status
+    /// Days until the due date (negative when overdue).
+    let days: Int?
+
+    var id: String { category + title }
+
+    var symbol: String {
+        switch category.uppercased() {
+        case "TUV", "TÜV", "HU": "checkmark.seal"
+        case "WARTUNG", "INSPEKTION", "SERVICE", "OEL", "ÖL": "wrench.and.screwdriver"
+        case "VERSICHERUNG", "INSURANCE": "shield"
+        case "STEUER", "TAX": "eurosign.circle"
+        default: "calendar.badge.exclamationmark"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case title, category, status, days
+        case dueDate = "due_date"
+        case dueKm = "due_km"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        title = c.text(.title) ?? ""
+        category = c.text(.category) ?? ""
+        dueDate = c.text(.dueDate).flatMap(APIDate.parseDay)
+        dueKm = c.number(.dueKm)
+        status = c.text(.status).flatMap(Status.init(rawValue:)) ?? .unknown
+        days = c.number(.days).map { Int($0) }
     }
 }
 
@@ -403,6 +509,8 @@ struct RemoteStation: Decodable, Identifiable {
     let houseNumber: String?
     let postCode: String?
     let place: String?
+    let lat: Double?
+    let lng: Double?
     let distanceKm: Double?
     let isOpen: Bool
     let prices: [String: Double?]
@@ -414,6 +522,9 @@ struct RemoteStation: Decodable, Identifiable {
         }
         return prices[type] ?? nil
     }
+
+    var latitude: Double? { lat }
+    var longitude: Double? { lng }
 
     var address: String {
         let streetLine = [street, houseNumber].compactMap { $0 }.joined(separator: " ")

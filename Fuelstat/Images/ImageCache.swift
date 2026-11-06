@@ -51,7 +51,7 @@ actor ImageCache {
     }
 }
 
-/// Vehicle photo from the API, or a symbol for the fuel type while loading or without a photo.
+/// Vehicle photo from the API, or a tinted placeholder with `car.side` in the vehicle's energy colour.
 struct VehiclePhoto: View {
     let url: URL?
     let fuelType: RemoteFuelType
@@ -59,19 +59,22 @@ struct VehiclePhoto: View {
     @State private var image: UIImage?
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Rectangle().fill(.tint.opacity(0.12))
-                Image(systemName: fuelType.symbol)
-                    .font(.title2)
-                    .foregroundStyle(.tint)
+        // The photo sits in an overlay so its fill size never widens the layout; only the frame given from
+        // outside counts.
+        Rectangle()
+            .fill(Theme.cardTint)
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: "car.side")
+                        .font(.title2)
+                        .foregroundStyle(fuelType.energyColor)
+                }
             }
-        }
-        .clipped()
+            .clipped()
         .accessibilityHidden(true)
         .task(id: url) {
             guard let url else {
