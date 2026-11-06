@@ -30,6 +30,8 @@ the central planning live in [FuelStat/fuelstat](https://github.com/FuelStat/fue
   are in English.
 - Accessibility is part of every feature: VoiceOver labels, Dynamic Type,
   dark mode.
+- **Design: follow [`docs/design.md`](docs/design.md)** (navigation, screens,
+  colour and spacing tokens, shared components in `Fuelstat/Design/`).
 - Signing uses a **free Apple developer account** (Personal Team). Do not add
   capabilities that need the paid program (Push Notifications, iCloud, Sign in
   with Apple, App Groups …) without asking first – the device build breaks.
