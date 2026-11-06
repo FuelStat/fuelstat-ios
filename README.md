@@ -31,7 +31,33 @@ https://github.com/FuelStat/fuelstat
 
 ## Development
 
-Development documentation will follow.
+### Current state (v0.1)
+
+A first, offline-only version:
+
+- Manage vehicles (petrol, diesel, LPG, electric)
+- Record fuel / charging entries (date, odometer, volume, cost, full tank)
+- Statistics per vehicle: average consumption (full-tank method),
+  cost per km, average price per unit, total cost, tracked distance
+
+Data is stored locally with SwiftData. The Fuelstat API integration will follow.
+
+### Project structure
+
+- `Fuelstat.xcodeproj` – iOS app (SwiftUI, iOS 17+)
+- `Fuelstat/` – app sources (models, views)
+- `Packages/FuelstatCore` – platform-independent logic (consumption calculation) with tests
+
+### Build & test
+
+Open `Fuelstat.xcodeproj` in Xcode and run the `Fuelstat` scheme.
+
+Core logic tests:
+
+```sh
+cd Packages/FuelstatCore
+swift test
+```
 
 ## License
 
