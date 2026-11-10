@@ -18,6 +18,19 @@ enum APIError: LocalizedError, Equatable {
         case .server(let code, _):
             switch code {
             case "invalid_credentials": String(localized: "E-Mail oder Passwort ist falsch.")
+            case "invalid_current_password": String(localized: "Das Passwort ist falsch.")
+            case "password_too_short": String(localized: "Das Passwort muss mindestens 8 Zeichen lang sein.")
+            case "invalid_email": String(localized: "Bitte gib eine gültige E-Mail-Adresse ein.")
+            case "mail_not_configured": String(localized: "Auf diesem Server ist kein Mailversand eingerichtet.")
+            case "smtp_failed": String(localized: "Die Mail konnte nicht verschickt werden. Bitte versuche es später erneut.")
+            case "resend_too_soon": String(localized: "Bitte warte eine Minute, bevor du die Mail erneut anforderst.")
+            case "already_verified": String(localized: "Deine E-Mail-Adresse ist bereits bestätigt.")
+            case "mfa_already_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist bereits aktiv.")
+            case "mfa_not_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist nicht aktiv.")
+            case "mfa_not_set_up": String(localized: "Bitte richte die Zwei-Faktor-Anmeldung zuerst neu ein.")
+            case "invalid_terms_version":
+                String(localized: "Die Nutzungsbedingungen wurden gerade geändert. Bitte lies die neue Fassung.")
+            case "nothing_to_update": String(localized: "Es gibt nichts zu ändern.")
             case "email_already_exists": String(localized: "Für diese E-Mail gibt es bereits ein Konto.")
             case "invalid_mfa_code": String(localized: "Der Bestätigungscode ist falsch.")
             case "too_many_attempts": String(localized: "Zu viele Versuche. Bitte warte kurz.")
@@ -111,6 +124,58 @@ struct APIClient {
 
     func whoami(token: String) async throws -> APIUser {
         try await send("whoami", token: token)
+    }
+
+    /// Asks for a password reset link. The API answers the same whether the account exists or not.
+    func forgotPassword(email: String) async throws {
+        let _: EmptyResponse = try await send("auth/forgot-password", method: "POST", body: ["email": email], token: nil)
+    }
+
+    /// Changes the password. The API revokes all tokens, including this one, and returns a new one.
+    func changePassword(current: String, new: String, token: String) async throws -> String {
+        let response: TokenResponse = try await send(
+            "auth/password", method: "POST", body: ["currentPassword": current, "newPassword": new], token: token
+        )
+        return response.token
+    }
+
+    func resendVerification(token: String) async throws -> VerificationSent {
+        try await send("auth/resend-verification", method: "POST", token: token)
+    }
+
+    func acceptTerms(version: String, token: String) async throws {
+        let _: EmptyResponse = try await send("auth/accept-terms", method: "POST", body: ["version": version],
+                                              token: token)
+    }
+
+    func updateProfile(userID: String, _ patch: ProfilePatch, token: String) async throws -> APIUser {
+        try await send("auth/users/\(userID)", method: "PATCH", body: patch, token: token)
+    }
+
+    /// Uploads a JPEG as profile picture; set it with `updateProfile` afterwards.
+    func uploadProfileImage(jpeg: Data, token: String) async throws -> UploadedMedia {
+        try await upload(jpeg: jpeg, to: "media/upload", token: token)
+    }
+
+    /// Signs out everywhere: every token issued so far stops working, this device's included.
+    func revokeAll(userID: String, token: String) async throws {
+        let _: EmptyResponse = try await send("auth/users/\(userID)/revoke-all", method: "POST",
+                                              body: ["reason": "app_revoke_all"], token: token)
+    }
+
+    // MARK: - Two-factor authentication
+
+    func mfaSetup(token: String) async throws -> MFASetup {
+        try await send("auth/mfa/setup", method: "POST", token: token)
+    }
+
+    func mfaEnable(code: String, token: String) async throws {
+        let _: EmptyResponse = try await send("auth/mfa/enable", method: "POST", body: ["code": code], token: token)
+    }
+
+    func mfaDisable(password: String, code: String, token: String) async throws {
+        let _: EmptyResponse = try await send("auth/mfa/disable", method: "POST",
+                                              body: ["password": password, "code": code], token: token)
     }
 
     /// Exchanges a valid token for a new one with 7 more days, up to 90 days after the last password sign-in.
@@ -211,6 +276,10 @@ struct APIClient {
 
     /// Uploads a JPEG as vehicle photo. The server scales it down, strips metadata and stores it as WebP.
     func uploadVehicleImage(vehicleID: String, jpeg: Data, token: String) async throws -> RemoteMedia {
+        try await upload(jpeg: jpeg, to: "vehicles/\(vehicleID)/media/upload", token: token)
+    }
+
+    private func upload<Response: Decodable>(jpeg: Data, to path: String, token: String) async throws -> Response {
         let boundary = "fuelstat-\(UUID().uuidString)"
         var body = Data()
         body.append(Data("--\(boundary)\r\n".utf8))
@@ -219,7 +288,7 @@ struct APIClient {
         body.append(jpeg)
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
 
-        var request = makeRequest("vehicles/\(vehicleID)/media/upload", method: "POST", query: [], token: token)
+        var request = makeRequest(path, method: "POST", query: [], token: token)
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
         return try await perform(request, token: token)
@@ -277,7 +346,9 @@ struct APIClient {
         guard (200..<300).contains(http.statusCode) else {
             let info = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
             let code = info?.error
-            if http.statusCode == 401, token != nil, code != "mfa_required" {
+            // These 401s mean a wrong password or code in the request, not an expired sign-in.
+            let inputErrors: Set<String> = ["mfa_required", "invalid_mfa_code", "invalid_current_password"]
+            if http.statusCode == 401, token != nil, !inputErrors.contains(code ?? "") {
                 throw APIError.unauthorized
             }
             if code == "plan_required" {

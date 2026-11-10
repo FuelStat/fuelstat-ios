@@ -1,8 +1,122 @@
 import Foundation
 
+/// The signed-in account. Login and registration send only some fields; `/whoami` sends all of them.
 struct APIUser: Decodable, Equatable {
+    struct Terms: Decodable, Equatable {
+        /// Current version of the terms (nil when the server has none).
+        let version: String?
+        let acceptedVersion: String?
+        /// The user has not accepted the current version yet; the app has to ask.
+        let required: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case version
+            case acceptedVersion = "accepted_version"
+            case required
+        }
+
+        init(version: String?, acceptedVersion: String?, required: Bool) {
+            self.version = version
+            self.acceptedVersion = acceptedVersion
+            self.required = required
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            version = c.text(.version)
+            acceptedVersion = c.text(.acceptedVersion)
+            required = (try? c.decodeIfPresent(Bool.self, forKey: .required)) ?? false
+        }
+    }
+
     let id: String
     let email: String
+    var username: String?
+    var mfaEnabled: Bool?
+    /// Signed, relative address of the profile picture.
+    var profileImageURL: String?
+    var emailVerified: Bool?
+    /// New address waiting for confirmation; sign-in still uses `email` until then.
+    var pendingEmail: String?
+    var terms: Terms?
+
+    enum CodingKeys: String, CodingKey {
+        case id, email, username, terms
+        case mfaEnabled = "mfa_enabled"
+        case profileImageURL = "profile_image_url"
+        case emailVerified = "email_verified"
+        case pendingEmail = "pending_email"
+    }
+
+    init(id: String, email: String, username: String? = nil, mfaEnabled: Bool? = nil, profileImageURL: String? = nil,
+         emailVerified: Bool? = nil, pendingEmail: String? = nil, terms: Terms? = nil) {
+        self.id = id
+        self.email = email
+        self.username = username
+        self.mfaEnabled = mfaEnabled
+        self.profileImageURL = profileImageURL
+        self.emailVerified = emailVerified
+        self.pendingEmail = pendingEmail
+        self.terms = terms
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        email = try c.decode(String.self, forKey: .email)
+        username = c.text(.username)
+        mfaEnabled = try? c.decodeIfPresent(Bool.self, forKey: .mfaEnabled)
+        profileImageURL = c.text(.profileImageURL)
+        emailVerified = try? c.decodeIfPresent(Bool.self, forKey: .emailVerified)
+        pendingEmail = c.text(.pendingEmail)
+        terms = try? c.decodeIfPresent(Terms.self, forKey: .terms)
+    }
+
+    /// Name shown in the app: the user name, otherwise the e-mail address.
+    var displayName: String { username ?? email }
+
+    /// The address still needs confirming (a new account or a changed address).
+    var needsEmailConfirmation: Bool { emailVerified == false || pendingEmail != nil }
+}
+
+/// Body of `PATCH /auth/users/:userId`. Only set fields are sent; `.some(nil)` sends `null` and removes the value.
+struct ProfilePatch: Encodable {
+    var email: String?
+    var username: String??
+    var profileImageUrl: String??
+
+    enum CodingKeys: String, CodingKey { case email, username, profileImageUrl }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(email, forKey: .email)
+        if let username {
+            if let username { try c.encode(username, forKey: .username) } else { try c.encodeNil(forKey: .username) }
+        }
+        if let profileImageUrl {
+            if let profileImageUrl {
+                try c.encode(profileImageUrl, forKey: .profileImageUrl)
+            } else {
+                try c.encodeNil(forKey: .profileImageUrl)
+            }
+        }
+    }
+}
+
+/// Response of `POST /auth/mfa/setup`: the secret is stored but 2FA is not active until `/auth/mfa/enable`.
+struct MFASetup: Decodable, Equatable {
+    let secret: String
+    let otpauthUrl: String
+}
+
+/// Response of `POST /media/upload` (profile picture).
+struct UploadedMedia: Decodable {
+    let url: String
+}
+
+/// Response of `POST /auth/resend-verification`.
+struct VerificationSent: Decodable {
+    let email: String?
 }
 
 struct AuthResponse: Decodable {

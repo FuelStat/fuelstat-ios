@@ -137,6 +137,7 @@ private struct SignInForm: View {
     @State private var isWorking = false
     @State private var errorMessage: String?
     @State private var showingServer = false
+    @State private var showingForgotPassword = false
 
     @FocusState private var focused: Field?
 
@@ -195,6 +196,9 @@ private struct SignInForm: View {
         .sheet(isPresented: $showingServer) {
             ServerSettingsView()
         }
+        .sheet(isPresented: $showingForgotPassword) {
+            ForgotPasswordView(email: email.trimmingCharacters(in: .whitespaces))
+        }
     }
 
     private var credentialsStep: some View {
@@ -234,6 +238,10 @@ private struct SignInForm: View {
                 Text("Das Passwort muss mindestens 8 Zeichen lang sein.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            } else {
+                Button("Passwort vergessen?") { showingForgotPassword = true }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.brand)
             }
         }
     }

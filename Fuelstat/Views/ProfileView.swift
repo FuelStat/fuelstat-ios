@@ -1,3 +1,4 @@
+import FuelstatCore
 import SwiftUI
 
 /// Profil: account, vehicles, feedback, sign-out, about, legal pages and account deletion.
@@ -11,35 +12,43 @@ struct ProfileView: View {
     @State private var termsVersion: String?
     @State private var webPage: WebPage?
 
-    private var email: String? {
-        if case .signedIn(let user) = auth.state { return user.email }
-        return nil
-    }
-
     private var version: String { "\(AppInfo.version) (\(AppInfo.build))" }
 
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                Section {
-                    HStack(spacing: Theme.Spacing.s) {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.largeTitle)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(Theme.brand)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(email ?? "")
-                                .font(.headline)
-                            Text("Server: \(ServerSettings.displayName(of: auth.api.baseURL))")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                if let user = auth.user {
+                    Section {
+                        NavigationLink(value: Route.account) {
+                            HStack(spacing: Theme.Spacing.s) {
+                                ProfileAvatar(user: user, size: 48)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(user.displayName)
+                                        .font(.headline)
+                                    if user.username != nil {
+                                        Text(user.email)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text("Server: \(ServerSettings.displayName(of: auth.api.baseURL))")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, Theme.Spacing.xxs)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityHint(Text("Profil, Passwort und Zwei-Faktor-Anmeldung"))
                         }
                     }
-                    .padding(.vertical, Theme.Spacing.xxs)
-                    .accessibilityElement(children: .combine)
+                    .listRowBackground(Theme.card)
+
+                    if user.needsEmailConfirmation {
+                        Section {
+                            EmailConfirmationNotice(user: user)
+                        }
+                        .listRowBackground(Theme.card)
+                    }
                 }
-                .listRowBackground(Theme.card)
 
                 Section {
                     NavigationLink(value: Route.vehicles) {
@@ -118,18 +127,11 @@ struct ProfileView: View {
     private func loadServerVersion() async {
         if let health = try? await auth.api.health() {
             serverVersion = health.version ?? String(localized: "unbekannt")
-            termsVersion = health.termsVersion.map(Self.formatTermsVersion)
+            termsVersion = health.termsVersion.map {
+                TermsVersion.date(from: $0)?.formatted(date: .numeric, time: .omitted) ?? $0
+            }
         } else if serverVersion == nil {
             serverVersion = String(localized: "nicht erreichbar")
         }
-    }
-
-    /// `2026-11-09` → `09.11.2026`; other formats are shown as they are.
-    private static func formatTermsVersion(_ version: String) -> String {
-        let parser = DateFormatter()
-        parser.locale = Locale(identifier: "en_US_POSIX")
-        parser.dateFormat = "yyyy-MM-dd"
-        guard let date = parser.date(from: version) else { return version }
-        return date.formatted(date: .numeric, time: .omitted)
     }
 }

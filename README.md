@@ -57,6 +57,14 @@ self-hosted servers can be entered on the sign-in screen):
   the app's release notes and the server's news page
 - Imprint, privacy policy and terms of use of the server in use, in an in-app
   Safari view (also on the welcome screen before sign-in)
+- Account (Profil → tap your name): profile picture, user name, e-mail change
+  with confirmation (`pending_email`), change password (the new token from
+  `/auth/password` keeps this device signed in), set up 2FA ("In Authenticator
+  öffnen" via `otpauth://`, key to copy, QR code) and turn it off, sign out on
+  all devices (`/revoke-all`)
+- Hint and "send again" while the e-mail address is unconfirmed; prompt for
+  new terms of use when `/whoami` reports `terms.required`
+- "Passwort vergessen?" on the sign-in screen (`/auth/forgot-password`)
 - Delete the account in the app (`DELETE /auth/users/:userId`), with an
   explanation and a double confirmation; removes the token, cached images and
   settings from the device

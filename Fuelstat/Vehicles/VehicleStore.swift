@@ -193,7 +193,7 @@ final class VehicleStore {
     }
 
     /// The server shrinks photos to 1600 px anyway; doing it here keeps uploads small on mobile data.
-    private static func jpeg(from image: UIImage, maxEdge: CGFloat = 1600) -> Data? {
+    static func jpeg(from image: UIImage, maxEdge: CGFloat = 1600) -> Data? {
         let size = image.size
         let scale = min(1, maxEdge / max(size.width, size.height))
         let target = CGSize(width: (size.width * scale).rounded(), height: (size.height * scale).rounded())

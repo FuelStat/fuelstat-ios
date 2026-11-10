@@ -19,7 +19,19 @@ struct MainTabView: View {
         .onAppear {
             if store == nil { store = VehicleStore(auth: auth) }
         }
+        .fullScreenCover(item: Binding(
+            get: { auth.user?.terms.flatMap { $0.required ? $0.version : nil }.map(PendingTerms.init) },
+            set: { _ in }
+        )) { pending in
+            TermsPromptView(version: pending.version)
+        }
     }
+}
+
+/// Terms of use the user still has to accept, as an item for `fullScreenCover`.
+private struct PendingTerms: Identifiable {
+    let version: String
+    var id: String { version }
 }
 
 /// Destinations reachable from several tabs.
@@ -30,6 +42,11 @@ enum Route: Hashable {
     case feedback
     case releaseNotes
     case deleteAccount
+    case account
+    case accountUsername
+    case accountEmail
+    case accountPassword
+    case accountTwoFactor
 }
 
 /// What the quick-entry sheet starts with.
@@ -150,6 +167,11 @@ extension View {
             case .feedback: FeedbackView()
             case .releaseNotes: ReleaseNotesView()
             case .deleteAccount: DeleteAccountView()
+            case .account: AccountView()
+            case .accountUsername: UsernameEditView()
+            case .accountEmail: EmailEditView()
+            case .accountPassword: PasswordChangeView()
+            case .accountTwoFactor: TwoFactorView()
             }
         }
     }
