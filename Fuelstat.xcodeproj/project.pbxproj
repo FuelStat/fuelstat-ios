@@ -192,6 +192,7 @@
 				DEVELOPMENT_TEAM = 7878PT638L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Fuelstat;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Damit du ein Foto deines Fahrzeugs aufnehmen kannst.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Damit Fuelstat beim Tanken Tankstellen in deiner Nähe mit aktuellen Preisen vorschlagen kann.";
@@ -223,6 +224,7 @@
 				DEVELOPMENT_TEAM = 7878PT638L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Fuelstat;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Damit du ein Foto deines Fahrzeugs aufnehmen kannst.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Damit Fuelstat beim Tanken Tankstellen in deiner Nähe mit aktuellen Preisen vorschlagen kann.";
