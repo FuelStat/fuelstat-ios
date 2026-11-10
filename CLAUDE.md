@@ -12,10 +12,11 @@ live in [FuelStat/fuelstat](https://github.com/FuelStat/fuelstat).
 - **Planning: one milestone per app version in this repo** (`0.2.0 – Foundation`
   … `1.0.0 – App Store`, plus `Later`), see the README section "Roadmap". Every
   open issue has a milestone; new issues get one when they are created.
-- Backend prerequisites stay in FuelStat/fuelstat (milestone 2.0.0 there) and
-  are named in the app issue ("Benötigt: FuelStat/fuelstat#…"). App issues up
-  to 1.0.0 also hang as sub-issues under FuelStat/fuelstat#116, so the backend
-  planning sees what the app needs.
+- Backend prerequisites stay in FuelStat/fuelstat, in a dated backend
+  milestone that is due **before** the app milestone needing them, and are
+  named in the app issue ("Benötigt: FuelStat/fuelstat#…"). App issues up to
+  1.0.0 also hang as sub-issues under FuelStat/fuelstat#116, which holds the
+  shared schedule. When app or backend dates move, update that schedule.
 
 ## Rules
 
