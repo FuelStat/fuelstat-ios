@@ -70,6 +70,7 @@ private struct MainTabs: View {
     /// Changes after an entry was saved, so the tabs reload their data.
     @State private var refresh = 0
     @State private var profilePath: [Route] = []
+    @State private var router = IntentRouter.shared
     @Environment(\.colorScheme) private var colorScheme
 
     private var selection: Binding<String?> {
@@ -115,8 +116,15 @@ private struct MainTabs: View {
                 .tabItem { Label("Profil", systemImage: "person.crop.circle") }
                 .tag(Tab.profile)
         }
-        .task { await store.load() }
+        .task {
+            await store.load()
+            // Lets Siri understand phrases with vehicle names ("VW Golf in Fuelstat öffnen").
+            FuelstatShortcuts.updateAppShortcutParameters()
+        }
         .onChange(of: selectedID) { VehicleSelection.storedID = selectedID }
+        .onChange(of: router.pending, initial: true) { handleIntentRequest() }
+        .onChange(of: store.hasLoaded) { handleIntentRequest() }
+        .onChange(of: router.savedEntries) { refresh += 1 }
         .sheet(item: $entry, onDismiss: { refresh += 1 }) { kind in
             FillupEntryView(store: store, vehicleID: store.resolvedSelection(selectedID), kind: kind)
         }
@@ -139,6 +147,23 @@ private struct MainTabs: View {
             }
         }
         return image.withRenderingMode(.alwaysOriginal)
+    }
+
+    /// Carries out what an intent asked for (open the entry sheet or a vehicle) once the vehicles are loaded.
+    private func handleIntentRequest() {
+        guard let request = router.pending, store.hasLoaded else { return }
+        router.pending = nil
+        switch request {
+        case .addEntry(let kind, let vehicleID):
+            if let vehicleID, store.vehicle(vehicleID) != nil { selectedID = vehicleID }
+            entry = nil
+            openEntry(kind)
+        case .openVehicle(let id):
+            guard store.vehicle(id) != nil else { return }
+            entry = nil
+            selectedID = id
+            tab = .start
+        }
     }
 
     private func openEntry(_ kind: EntryKind?) {

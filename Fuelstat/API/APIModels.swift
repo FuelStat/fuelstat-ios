@@ -519,6 +519,19 @@ struct RemoteReminder: Decodable, Identifiable {
 
     var id: String { category + title }
 
+    /// Most urgent first: overdue, soon, then by days left. Only orders what the API calculated.
+    static func byUrgency(_ list: [RemoteReminder]) -> [RemoteReminder] {
+        func rank(_ status: Status) -> Int {
+            switch status {
+            case .overdue: 0
+            case .soon: 1
+            case .ok: 2
+            case .unknown: 3
+            }
+        }
+        return list.sorted { (rank($0.status), $0.days ?? .max) < (rank($1.status), $1.days ?? .max) }
+    }
+
     var symbol: String {
         switch category.uppercased() {
         case "TUV", "TÜV", "HU": "checkmark.seal"

@@ -68,6 +68,12 @@ self-hosted servers can be entered on the sign-in screen):
 - Delete the account in the app (`DELETE /auth/users/:userId`), with an
   explanation and a double confirmation; removes the token, cached images and
   settings from the device
+- Siri and Shortcuts (App Intents, first part of #20): "Tanken erfassen" and
+  "Laden erfassen" in the background (same API call as the entry sheet,
+  odometer warnings from the API), "Nächster Termin" and
+  "Durchschnittsverbrauch" with return values, "Eintrag erfassen" and
+  "Fahrzeug öffnen" open the app; vehicles are selectable entities; German
+  Siri phrases; only on an unlocked device
 - Welcome screen, sign-in with labelled fields, 2FA as six digit boxes
   (one-time-code autofill), own server under "Eigener Server"
 - Sign in / register (incl. 2FA code), token stored in the Keychain, renewed

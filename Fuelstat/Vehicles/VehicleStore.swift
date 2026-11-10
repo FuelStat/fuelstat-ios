@@ -133,18 +133,7 @@ final class VehicleStore {
 
     /// Due dates, most urgent first: overdue, soon, then by days left.
     func reminders(of id: String) async throws -> [RemoteReminder] {
-        let list = try await auth.call { try await $0.reminders(vehicleID: id, token: $1) }
-        func rank(_ status: RemoteReminder.Status) -> Int {
-            switch status {
-            case .overdue: 0
-            case .soon: 1
-            case .ok: 2
-            case .unknown: 3
-            }
-        }
-        return list.sorted {
-            (rank($0.status), $0.days ?? .max) < (rank($1.status), $1.days ?? .max)
-        }
+        RemoteReminder.byUrgency(try await auth.call { try await $0.reminders(vehicleID: id, token: $1) })
     }
 
     /// Saves a fill-up and refreshes the vehicle's key figures. Returns the API's odometer warnings.
@@ -173,11 +162,17 @@ final class VehicleStore {
 
     /// The vehicle used for the last fill-up, as default for the next one.
     var lastUsedVehicleID: String? {
-        let id = UserDefaults.standard.string(forKey: Self.lastVehicleKey)
+        let id = Self.storedLastVehicleID
         return vehicles.contains { $0.id == id } ? id : vehicles.first?.id
     }
 
-    private static let lastVehicleKey = "fillup.lastVehicleID"
+    private nonisolated static let lastVehicleKey = "fillup.lastVehicleID"
+
+    /// The vehicle of the last fill-up saved in the app, also used by Siri and Shortcuts.
+    nonisolated static var storedLastVehicleID: String? {
+        get { UserDefaults.standard.string(forKey: lastVehicleKey) }
+        set { UserDefaults.standard.set(newValue, forKey: lastVehicleKey) }
+    }
 
     private func replace(_ vehicle: RemoteVehicle) {
         if let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
