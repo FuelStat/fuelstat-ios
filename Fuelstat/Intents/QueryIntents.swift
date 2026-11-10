@@ -3,8 +3,8 @@ import Foundation
 
 /// "Was ist als Nächstes fällig?" – the most urgent due date as calculated by the API (`/reminders`).
 struct NextReminderIntent: AppIntent {
-    static var title: LocalizedStringResource = "Nächster Termin"
-    static var description = IntentDescription("Nennt den dringendsten Termin eines Fahrzeugs, zum Beispiel TÜV oder Wartung.",
+    static var title: LocalizedStringResource = "Was ist fällig?"
+    static var description = IntentDescription("Nennt die dringendste Fälligkeit eines Fahrzeugs, zum Beispiel TÜV, Wartung oder Versicherung.",
                                                categoryName: "Abfragen")
     static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
@@ -12,7 +12,7 @@ struct NextReminderIntent: AppIntent {
     var vehicle: VehicleEntity
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Nächster Termin für \(\.$vehicle)")
+        Summary("Nächste Fälligkeit für \(\.$vehicle)")
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
@@ -80,6 +80,9 @@ struct FuelstatShortcuts: AppShortcutsProvider {
                 "Tanken in \(.applicationName) erfassen",
                 "Tankvorgang in \(.applicationName) eintragen",
                 "Mit \(.applicationName) Tanken erfassen",
+                "Ich habe getankt in \(.applicationName)",
+                "Tankquittung in \(.applicationName) erfassen",
+                "\(\.$vehicle) getankt in \(.applicationName)",
             ],
             shortTitle: "Tanken erfassen",
             systemImageName: "fuelpump"
@@ -89,24 +92,39 @@ struct FuelstatShortcuts: AppShortcutsProvider {
             phrases: [
                 "Laden in \(.applicationName) erfassen",
                 "Ladevorgang in \(.applicationName) eintragen",
+                "Ich habe geladen in \(.applicationName)",
+                "\(\.$vehicle) geladen in \(.applicationName)",
             ],
             shortTitle: "Laden erfassen",
             systemImageName: "bolt.car"
         )
+        // Avoid "Termin": Siri hands such questions to the Calendar app.
         AppShortcut(
             intent: NextReminderIntent(),
             phrases: [
-                "Nächster Termin in \(.applicationName)",
-                "Was ist in \(.applicationName) als Nächstes fällig",
+                "Was ist bei \(.applicationName) fällig",
+                "Was ist in \(.applicationName) fällig",
+                "Was steht bei \(.applicationName) an",
+                "Fälligkeiten in \(.applicationName)",
+                "Nächste Fälligkeit in \(.applicationName)",
+                "Wann ist der TÜV laut \(.applicationName)",
+                "Was ist bei \(\.$vehicle) in \(.applicationName) fällig",
+                "Fälligkeiten von \(\.$vehicle) in \(.applicationName)",
             ],
-            shortTitle: "Nächster Termin",
+            shortTitle: "Was ist fällig?",
             systemImageName: "calendar.badge.clock"
         )
         AppShortcut(
             intent: AverageConsumptionIntent(),
             phrases: [
                 "Verbrauch in \(.applicationName)",
+                "Verbrauch bei \(.applicationName)",
                 "Wie ist mein Verbrauch in \(.applicationName)",
+                "Wie viel verbrauche ich laut \(.applicationName)",
+                "Durchschnittsverbrauch in \(.applicationName)",
+                "Zeig meinen Verbrauch in \(.applicationName)",
+                "Verbrauch von \(\.$vehicle) in \(.applicationName)",
+                "Wie viel verbraucht \(\.$vehicle) laut \(.applicationName)",
             ],
             shortTitle: "Verbrauch",
             systemImageName: "gauge.with.dots.needle.33percent"

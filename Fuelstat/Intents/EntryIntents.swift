@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import FuelstatCore
 
 /// Siri / Shortcuts: "Tanken erfassen" without opening the app.
 struct AddFuelEntryIntent: AppIntent {
@@ -11,13 +12,13 @@ struct AddFuelEntryIntent: AppIntent {
     @Parameter(title: "Fahrzeug")
     var vehicle: VehicleEntity
 
-    @Parameter(title: "Menge", description: "Getankte Menge in Litern (bei Gas in Kilogramm)",
+    @Parameter(title: "Menge", description: "Getankte Menge in Litern (bei Gas in Kilogramm), z. B. 42,5",
                requestValueDialog: "Wie viel hast du getankt?")
-    var amount: Double
+    var amount: String
 
-    @Parameter(title: "Betrag", description: "Gesamtbetrag in Euro",
+    @Parameter(title: "Betrag", description: "Gesamtbetrag in Euro, z. B. 75,30",
                requestValueDialog: "Wie viel hat es gekostet?")
-    var total: Double
+    var total: String
 
     @Parameter(title: "Kilometerstand", description: "Optional; hilft bei der Verbrauchsberechnung")
     var odometer: Int?
@@ -33,6 +34,10 @@ struct AddFuelEntryIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        let amount = try EntryRecorder.number(amount, for: $amount,
+                                             retry: "Das habe ich nicht verstanden. Wie viele Liter waren es, zum Beispiel 42,5?")
+        let total = try EntryRecorder.number(total, for: $total,
+                                            retry: "Das habe ich nicht verstanden. Wie viel Euro waren es, zum Beispiel 75,30?")
         let message = try await EntryRecorder.save(vehicle: vehicle, charging: false, amount: amount, total: total,
                                                    odometer: odometer, isFull: isFull)
         return .result(dialog: IntentDialog(stringLiteral: message))
@@ -49,13 +54,13 @@ struct AddChargingEntryIntent: AppIntent {
     @Parameter(title: "Fahrzeug")
     var vehicle: VehicleEntity
 
-    @Parameter(title: "Energie", description: "Geladene Energie in kWh",
+    @Parameter(title: "Energie", description: "Geladene Energie in kWh, z. B. 38,5",
                requestValueDialog: "Wie viele Kilowattstunden hast du geladen?")
-    var amount: Double
+    var amount: String
 
-    @Parameter(title: "Betrag", description: "Gesamtbetrag in Euro",
+    @Parameter(title: "Betrag", description: "Gesamtbetrag in Euro, z. B. 75,30",
                requestValueDialog: "Wie viel hat es gekostet?")
-    var total: Double
+    var total: String
 
     @Parameter(title: "Kilometerstand", description: "Optional; hilft bei der Verbrauchsberechnung")
     var odometer: Int?
@@ -71,6 +76,10 @@ struct AddChargingEntryIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        let amount = try EntryRecorder.number(amount, for: $amount,
+                                             retry: "Das habe ich nicht verstanden. Wie viele Kilowattstunden waren es, zum Beispiel 38,5?")
+        let total = try EntryRecorder.number(total, for: $total,
+                                            retry: "Das habe ich nicht verstanden. Wie viel Euro waren es, zum Beispiel 12,40?")
         let message = try await EntryRecorder.save(vehicle: vehicle, charging: true, amount: amount, total: total,
                                                    odometer: odometer, isFull: isFull)
         return .result(dialog: IntentDialog(stringLiteral: message))
@@ -114,6 +123,16 @@ struct OpenVehicleIntent: OpenIntent {
 
 /// Saves a fill-up or charging session through the same API call as the entry sheet.
 enum EntryRecorder {
+    /// Reads a spoken or typed number ("42,5", "75 Euro 30"). If that fails, Siri asks again with an example
+    /// instead of repeating the same question.
+    static func number(_ text: String, for parameter: IntentParameter<String>,
+                       retry: LocalizedStringResource) throws -> Double {
+        guard let value = SpokenNumber.parse(text), value > 0 else {
+            throw parameter.needsValueError(IntentDialog(retry))
+        }
+        return value
+    }
+
     static func save(vehicle: VehicleEntity, charging: Bool, amount: Double, total: Double, odometer: Int?,
                      isFull: Bool) async throws -> String {
         let units = vehicle.fuelType.fillupUnits

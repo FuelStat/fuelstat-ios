@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct FuelstatApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var auth = AuthSession()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -31,6 +32,7 @@ private struct RootView: View {
                 .task { await auth.restore() }
         case .signedOut:
             LoginView()
+                .onAppear { QuickActions.clear() }
         case .signedIn(let user):
             // A new list per user, so no vehicles of a previous account remain.
             MainTabView()

@@ -122,6 +122,9 @@ private struct MainTabs: View {
             FuelstatShortcuts.updateAppShortcutParameters()
         }
         .onChange(of: selectedID) { VehicleSelection.storedID = selectedID }
+        .onChange(of: store.vehicles.map(\.id), initial: true) {
+            QuickActions.update(for: store.vehicles, selectedID: store.resolvedSelection(selectedID))
+        }
         .onChange(of: router.pending, initial: true) { handleIntentRequest() }
         .onChange(of: store.hasLoaded) { handleIntentRequest() }
         .onChange(of: router.savedEntries) { refresh += 1 }
