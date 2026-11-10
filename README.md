@@ -31,18 +31,13 @@ https://github.com/FuelStat/fuelstat
 
 ## Development
 
-### Current state (v0.1)
+### Current state (0.1.0 – MVP)
 
-A first, offline-only version:
-
-- Manage vehicles (petrol, diesel, LPG, electric)
-- Record fuel / charging entries (date, odometer, volume, cost, full tank)
-- Statistics per vehicle: average consumption (full-tank method),
-  cost per km, average price per unit, total cost, tracked distance
-
-Data is stored locally with SwiftData.
-
-### Fuelstat API (in progress)
+The app is an **MVP**, not yet an alpha: it runs only from Xcode on your own
+device (free developer account, valid 7 days), there is no TestFlight or App
+Store build. Version 0.1.0 marks this state; the first regular release is
+[0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)
+(see Roadmap). Developed against Fuelstat server 0.11.0.
 
 The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
 self-hosted servers can be entered on the sign-in screen):
@@ -72,8 +67,8 @@ self-hosted servers can be entered on the sign-in screen):
 - Vehicle photo from the camera or photo library; images are cached on the device
   by file name, because the signed image URLs change daily
 
-The offline views from v0.1 are currently not shown; their code stays for the
-upcoming fill-up and statistics screens.
+The first offline-only prototype (SwiftData) is no longer shown; its code
+stays in the project for now.
 
 ### Project structure
 
