@@ -74,6 +74,12 @@ self-hosted servers can be entered on the sign-in screen):
   "Durchschnittsverbrauch" with return values, "Eintrag erfassen" and
   "Fahrzeug öffnen" open the app; vehicles are selectable entities; German
   Siri phrases; only on an unlocked device
+- Widget "Fahrzeug" (#22, first part): small (Ø consumption, next due date),
+  medium (plus "Tanken"/"Laden" buttons that open the entry sheet), Lock
+  Screen rectangular, circular and inline; vehicle chosen in the widget
+  settings; data from `/stats` and `/reminders`, sign-in shared with the app
+  through Keychain Sharing; links use `fuelstat://`
+- Home Screen quick actions (long press on the icon): Tanken, Laden, vehicles
 - Welcome screen, sign-in with labelled fields, 2FA as six digit boxes
   (one-time-code autofill), own server under "Eigener Server"
 - Sign in / register (incl. 2FA code), token stored in the Keychain, renewed
@@ -94,7 +100,10 @@ stays in the project for now.
 ### Project structure
 
 - `Fuelstat.xcodeproj` – iOS app (SwiftUI, iOS 17+)
-- `Fuelstat/` – app sources (models, views)
+- `Fuelstat/` – app sources (models, views, App Intents)
+- `Shared/` – API client, models and Keychain, used by app and widgets
+- `FuelstatWidgets/` – widget extension
+- `Config/` – Info.plist additions and entitlements
 - `Packages/FuelstatCore` – platform-independent logic (consumption calculation,
   server address parsing, image cache keys) with tests
 

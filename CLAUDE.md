@@ -40,14 +40,23 @@ live in [FuelStat/fuelstat](https://github.com/FuelStat/fuelstat).
 - Signing uses a **free Apple developer account** (Personal Team). Do not add
   capabilities that need the paid program (Push Notifications, iCloud, Sign in
   with Apple, App Groups …) without asking first – the device build breaks.
-  Local notifications are fine.
+  Local notifications are fine. **Keychain Sharing** (`keychain-access-groups`,
+  group `$(AppIdentifierPrefix)org.fuelstat.shared`) is in use for the widgets
+  and works with the free account.
 - Never commit secrets (API keys, tokens, `.p8` files) or `xcuserdata/`.
 
 ## Project layout
 
-- `Fuelstat.xcodeproj` – app target and scheme `Fuelstat`
-- `Fuelstat/` – app sources: `API/` (client and models), `Auth/` (session,
-  Keychain), `Views/`, `Vehicles/`, `Location/`, `Images/`
+- `Fuelstat.xcodeproj` – app target and scheme `Fuelstat`, widget extension
+  target `FuelstatWidgets` (embedded in the app)
+- `Fuelstat/` – app sources: `Auth/` (session), `Views/`, `Vehicles/`,
+  `Intents/` (App Intents, quick actions), `Location/`, `Images/`
+- `Shared/` – compiled into app and widgets: API client and models, Keychain,
+  formatting
+- `FuelstatWidgets/` – WidgetKit extension (own asset catalog with copies of
+  the colour tokens it uses)
+- `Config/` – Info.plist additions and entitlements (outside the synchronised
+  folders on purpose, so they are not copied as resources)
 - `Packages/FuelstatCore` – platform-independent logic with tests. Put pure
   logic (parsing, calculations that are not the API's job, formatting helpers)
   here so it can be tested without a simulator.
@@ -82,7 +91,8 @@ The app has its own version, independent of the web app/API version.
 - `MARKETING_VERSION` (e.g. `0.1.0`, Semantic Versioning, `0.x` during the
   beta) is what users see; `CURRENT_PROJECT_VERSION` is the build number and
   must increase with every build that leaves a developer's machine (TestFlight,
-  App Store). Both are set in `Fuelstat.xcodeproj` (Debug and Release).
+  App Store). Both are set in `Fuelstat.xcodeproj` (Debug and Release) for
+  **both targets** (`Fuelstat` and `FuelstatWidgets`); they must match.
 - **App releases do not bump the backend.** If a release needs a new API
   feature, the backend release (FuelStat/fuelstat, `docs/betrieb.md`) must be
   tagged and deployed first; say so in the release notes.

@@ -6,6 +6,21 @@
 -->
 <plist version="1.0">
 <dict>
+	<!-- Keychain group shared with the widgets (see Shared/KeychainStore.swift). -->
+	<key>FuelstatKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)org.fuelstat.shared</string>
+	<!-- Links from the widgets: fuelstat://add, fuelstat://vehicle/<id> (FuelstatCore.AppLink). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>org.fuelstat.ios</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fuelstat</string>
+			</array>
+		</dict>
+	</array>
 	<!-- Other ways people say the app name, so Siri recognises "Fuel Stat" or "FuelStat" in App Shortcut phrases. -->
 	<key>INAlternativeAppNames</key>
 	<array>

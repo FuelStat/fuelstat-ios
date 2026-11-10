@@ -377,8 +377,10 @@ extension APIClient {
 enum ServerSettings {
     private static let key = "api.baseURL"
 
+    /// The app reads UserDefaults; widgets cannot, so they read the copy in the shared Keychain group.
     static var baseURL: URL {
-        UserDefaults.standard.string(forKey: key).flatMap(URL.init(string:)) ?? APIClient.defaultBaseURL
+        (UserDefaults.standard.string(forKey: key) ?? KeychainStore.loadServer()).flatMap(URL.init(string:))
+            ?? APIClient.defaultBaseURL
     }
 
     static var isCustom: Bool { baseURL != APIClient.defaultBaseURL }
@@ -386,8 +388,17 @@ enum ServerSettings {
     static func save(_ url: URL) {
         if url == APIClient.defaultBaseURL {
             UserDefaults.standard.removeObject(forKey: key)
+            KeychainStore.saveServer(nil)
         } else {
             UserDefaults.standard.set(url.absoluteString, forKey: key)
+            KeychainStore.saveServer(url.absoluteString)
+        }
+    }
+
+    /// Copies a custom server chosen before the widgets existed into the Keychain.
+    static func shareWithWidgets() {
+        if let address = UserDefaults.standard.string(forKey: key), KeychainStore.loadServer() == nil {
+            KeychainStore.saveServer(address)
         }
     }
 

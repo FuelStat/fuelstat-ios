@@ -26,6 +26,8 @@ final class VehicleStore {
             loadError = nil
             hasLoaded = true
             await loadStats()
+            // Vehicles may have been renamed, added or removed; reloading in the foreground costs no widget budget.
+            WidgetRefresh.reload()
         } catch is CancellationError {
             return
         } catch {
@@ -139,6 +141,7 @@ final class VehicleStore {
     /// Saves a fill-up and refreshes the vehicle's key figures. Returns the API's odometer warnings.
     func addFillup(_ input: FillupInput) async throws -> [String] {
         let created = try await auth.call { try await $0.createFillup(input, token: $1) }
+        WidgetRefresh.reload()
         UserDefaults.standard.set(input.vehicleId, forKey: Self.lastVehicleKey)
         if let figures = try? await auth.call({ try await $0.stats(vehicleID: input.vehicleId, token: $1) }) {
             stats[input.vehicleId] = figures

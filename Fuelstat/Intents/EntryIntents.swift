@@ -148,6 +148,7 @@ enum EntryRecorder {
         let created = try await IntentAPI.call { try await $0.createFillup(input, token: $1) }
         VehicleStore.storedLastVehicleID = vehicle.id
         await IntentRouter.shared.entrySaved()
+        WidgetRefresh.reload()
 
         let unitLabel = unit == "kwh" ? "kWh" : (unit == "kg" ? "kg" : "L")
         var lines = [String(localized: "\(Fmt.number(amount, digits: 2)) \(unitLabel) für \(Fmt.currency(total)) bei \(vehicle.name) gespeichert.")]

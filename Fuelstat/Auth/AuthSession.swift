@@ -194,6 +194,7 @@ final class AuthSession {
             throw APIError.unauthorized
         }
         await ImageCache.shared.removeAll()
+        ServerSettings.save(APIClient.defaultBaseURL)
         if let domain = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }
@@ -243,6 +244,7 @@ final class AuthSession {
         UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)
         storeUser(response.user)
         state = .signedIn(response.user)
+        WidgetRefresh.reload()
     }
 
     private func clear(notice: String? = nil) {
@@ -253,6 +255,7 @@ final class AuthSession {
         token = nil
         signOutNotice = notice
         state = .signedOut
+        WidgetRefresh.reload()
     }
 
     // Non-secret profile data, so the app can start offline.
