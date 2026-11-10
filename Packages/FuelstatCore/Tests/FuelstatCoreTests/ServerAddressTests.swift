@@ -47,4 +47,18 @@ struct ImageCacheKeyTests {
         #expect(!key.contains("/"))
         #expect(!key.contains("?"))
     }
+
+    @Test func webPageOnHostedServer() {
+        let api = URL(string: "https://tanken.1emc.de/api/v1")!
+        #expect(ServerAddress.webPageURL("pages/impressum.php", apiBaseURL: api)?.absoluteString
+            == "https://tanken.1emc.de/pages/impressum.php")
+        #expect(ServerAddress.webPageURL("/pages/datenschutz.php", apiBaseURL: api)?.absoluteString
+            == "https://tanken.1emc.de/pages/datenschutz.php")
+    }
+
+    @Test func webPageKeepsPortAndSubPath() {
+        let api = URL(string: "https://fuel.local:8443/fuelstat/api/v1")!
+        #expect(ServerAddress.webPageURL("pages/impressum.php", apiBaseURL: api)?.absoluteString
+            == "https://fuel.local:8443/fuelstat/pages/impressum.php")
+    }
 }

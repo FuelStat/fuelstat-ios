@@ -92,7 +92,11 @@ Steps:
 1. Feature PRs keep the README section "Current state" up to date. The
    planned versions are the milestones; a release ships its milestone.
 2. **Prepare** a release PR: bump `MARKETING_VERSION` and
-   `CURRENT_PROJECT_VERSION`, update the README, run the tests and the CI build.
+   `CURRENT_PROJECT_VERSION`, update the README, add the version to the
+   in-app release notes (`ReleaseNote.all` in
+   `Fuelstat/Views/ReleaseNotesView.swift`, German, written for users), check
+   `docs/app-privacy.md` against what the app sends, run the tests and the CI
+   build.
 3. **Merge** the PR.
 4. **Tag** the merged `main` and create the GitHub release (no workflow yet –
    create it on GitHub from the tag, notes = what changed for users, marked

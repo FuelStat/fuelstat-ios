@@ -75,6 +75,26 @@ final class AuthSession {
         clear()
     }
 
+    /// Deletes the account on the server, then removes everything the app stored on this device
+    /// (token, cached images, settings) and returns to the welcome screen.
+    func deleteAccount() async throws {
+        guard case .signedIn(let user) = state, let token else { throw APIError.unauthorized }
+        do {
+            try await api.deleteAccount(userID: user.id, token: token)
+        } catch APIError.server(code: "user_not_found", _), APIError.server(code: "account_not_found", _) {
+            // Already gone (e.g. deleted in the web app): clean up all the same.
+        } catch APIError.unauthorized {
+            clear(notice: APIError.unauthorized.localizedDescription)
+            throw APIError.unauthorized
+        }
+        await ImageCache.shared.removeAll()
+        if let domain = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+        }
+        api.baseURL = ServerSettings.baseURL
+        clear(notice: String(localized: "Dein Konto wurde gelöscht."))
+    }
+
     /// Runs an API call with the current token. An expired or revoked token signs the user out.
     func call<T>(_ operation: (APIClient, String) async throws -> T) async throws -> T {
         guard let token else { throw APIError.unauthorized }

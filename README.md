@@ -52,7 +52,14 @@ self-hosted servers can be entered on the sign-in screen):
   plug-in hybrids, more entries load while scrolling, swipe to delete
 - Statistik: key figures and consumption per fill-up (segments from `/stats`)
   as a chart
-- Profil: account, vehicle management, sign out, app and server version
+- Profil: account, vehicle management, sign out, app and server version,
+  feedback to the server operator (`POST /feedback`, with app and iOS version),
+  the app's release notes and the server's news page
+- Imprint, privacy policy and terms of use of the server in use, in an in-app
+  Safari view (also on the welcome screen before sign-in)
+- Delete the account in the app (`DELETE /auth/users/:userId`), with an
+  explanation and a double confirmation; removes the token, cached images and
+  settings from the device
 - Welcome screen, sign-in with labelled fields, 2FA as six digit boxes
   (one-time-code autofill), own server under "Eigener Server"
 - Sign in / register (incl. 2FA code), token stored in the Keychain, renewed

@@ -27,6 +27,8 @@ private struct WelcomeView: View {
     @Environment(AuthSession.self) private var auth
     var onSelect: (LoginView.Mode) -> Void
 
+    @State private var webPage: WebPage?
+
     var body: some View {
         VStack(spacing: Theme.Spacing.l) {
             Spacer()
@@ -56,12 +58,20 @@ private struct WelcomeView: View {
                 Button("Konto erstellen") { onSelect(.register) }
                     .buttonStyle(WelcomeButtonStyle(filled: false))
             }
+            HStack(spacing: Theme.Spacing.m) {
+                Button("Impressum") { webPage = .imprint }
+                Text("·").accessibilityHidden(true)
+                Button("Datenschutz") { webPage = .privacy }
+            }
+            .font(.footnote)
+            .foregroundStyle(.white.opacity(0.75))
         }
         .padding(.horizontal, Theme.Spacing.l)
         .padding(.bottom, Theme.Spacing.l)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.welcomeNavy.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .webPageSheet($webPage, apiBaseURL: auth.api.baseURL)
     }
 }
 

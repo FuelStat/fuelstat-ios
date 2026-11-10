@@ -45,6 +45,23 @@ public enum ServerAddress {
         while text.hasSuffix("/") { text.removeLast() }
         return text
     }
+
+    /// Address of a page of the web app on the same server, e.g. `https://tanken.example.de/pages/impressum.php`
+    /// for `https://tanken.example.de/api/v1` and `pages/impressum.php`.
+    ///
+    /// The web app and the API share one origin; a self-hosted server serves its own legal pages.
+    public static func webPageURL(_ page: String, apiBaseURL: URL) -> URL? {
+        guard var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false) else { return nil }
+        var root = components.path
+        if root.hasSuffix(apiPath) { root.removeLast(apiPath.count) }
+        while root.hasSuffix("/") { root.removeLast() }
+        var page = page
+        while page.hasPrefix("/") { page.removeFirst() }
+        components.path = root + "/" + page
+        components.query = nil
+        components.fragment = nil
+        return components.url
+    }
 }
 
 /// Cache key for an image delivered by the API.

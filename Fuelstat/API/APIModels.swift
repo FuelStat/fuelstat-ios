@@ -19,6 +19,33 @@ struct TokenResponse: Decodable {
 struct HealthResponse: Decodable {
     let status: String
     let version: String?
+    /// Current version of the terms of use (a date such as `2026-11-09`), if the server has terms.
+    let termsVersion: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status, version
+        case termsVersion = "terms_version"
+    }
+}
+
+/// Body of `POST /feedback`.
+struct FeedbackInput: Encodable {
+    enum Category: String, Encodable, CaseIterable, Identifiable {
+        case fehler, idee, lob, sonstiges
+
+        var id: String { rawValue }
+    }
+
+    let category: Category
+    let message: String
+    /// Where the feedback comes from; the app sends its version and the iOS version.
+    let page: String
+}
+
+/// Response of `POST /feedback`: always stored, `mailed` tells whether the operator also got a mail.
+struct FeedbackResponse: Decodable {
+    let saved: Bool?
+    let mailed: Bool?
 }
 
 struct APIErrorResponse: Decodable {

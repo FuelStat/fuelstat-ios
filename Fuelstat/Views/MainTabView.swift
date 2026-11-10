@@ -27,6 +27,9 @@ enum Route: Hashable {
     case vehicle(String)
     case reminders(String)
     case vehicles
+    case feedback
+    case releaseNotes
+    case deleteAccount
 }
 
 /// What the quick-entry sheet starts with.
@@ -144,6 +147,9 @@ extension View {
             case .vehicle(let id): RemoteVehicleDetailView(vehicleID: id, store: store)
             case .reminders(let id): RemindersListView(store: store, vehicleID: id)
             case .vehicles: VehicleManagementView(store: store)
+            case .feedback: FeedbackView()
+            case .releaseNotes: ReleaseNotesView()
+            case .deleteAccount: DeleteAccountView()
             }
         }
     }

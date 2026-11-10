@@ -41,6 +41,12 @@ enum APIError: LocalizedError, Equatable {
             case "stations_not_configured":
                 String(localized: "Die Tankstellensuche ist auf diesem Server nicht eingerichtet.")
             case "stations_unavailable": String(localized: "Tankerkönig ist gerade nicht erreichbar.")
+            case "email_not_verified":
+                String(localized: "Bitte bestätige zuerst deine E-Mail-Adresse. Den Link dazu haben wir dir per Mail geschickt.")
+            case "invalid_message": String(localized: "Die Nachricht muss zwischen 3 und 5000 Zeichen lang sein.")
+            case "invalid_category": String(localized: "Bitte wähle eine Art aus.")
+            case "forbidden": String(localized: "Dazu fehlen dir die Rechte.")
+            case "user_not_found", "account_not_found": String(localized: "Das Konto gibt es nicht mehr.")
             default: String(localized: "Serverfehler (\(code)).")
             }
         case .invalidResponse:
@@ -117,6 +123,18 @@ struct APIClient {
         let _: EmptyResponse = try await send(
             "auth/tokens/revoke", method: "POST", body: ["token": token, "reason": "logout"], token: token
         )
+    }
+
+    /// Deletes the account with all own vehicles, entries and images. Entries on vehicles shared by others are
+    /// handed over to their owners. All tokens of the account stop working.
+    func deleteAccount(userID: String, token: String) async throws {
+        let _: EmptyResponse = try await send("auth/users/\(userID)", method: "DELETE", token: token)
+    }
+
+    // MARK: - Feedback
+
+    func sendFeedback(_ input: FeedbackInput, token: String) async throws -> FeedbackResponse {
+        try await send("feedback", method: "POST", body: input, token: token)
     }
 
     // MARK: - Vehicles
