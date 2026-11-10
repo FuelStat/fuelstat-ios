@@ -52,7 +52,34 @@ self-hosted servers can be entered on the sign-in screen):
   plug-in hybrids, more entries load while scrolling, swipe to delete
 - Statistik: key figures and consumption per fill-up (segments from `/stats`)
   as a chart
-- Profil: account, vehicle management, sign out, app and server version
+- Profil: account, vehicle management, sign out, app and server version,
+  feedback to the server operator (`POST /feedback`, with app and iOS version),
+  the app's release notes and the server's news page
+- Imprint, privacy policy and terms of use of the server in use, in an in-app
+  Safari view (also on the welcome screen before sign-in)
+- Account (Profil → tap your name): profile picture, user name, e-mail change
+  with confirmation (`pending_email`), change password (the new token from
+  `/auth/password` keeps this device signed in), set up 2FA ("In Authenticator
+  öffnen" via `otpauth://`, key to copy, QR code) and turn it off, sign out on
+  all devices (`/revoke-all`)
+- Hint and "send again" while the e-mail address is unconfirmed; prompt for
+  new terms of use when `/whoami` reports `terms.required`
+- "Passwort vergessen?" on the sign-in screen (`/auth/forgot-password`)
+- Delete the account in the app (`DELETE /auth/users/:userId`), with an
+  explanation and a double confirmation; removes the token, cached images and
+  settings from the device
+- Siri and Shortcuts (App Intents, first part of #20): "Tanken erfassen" and
+  "Laden erfassen" in the background (same API call as the entry sheet,
+  odometer warnings from the API), "Nächster Termin" and
+  "Durchschnittsverbrauch" with return values, "Eintrag erfassen" and
+  "Fahrzeug öffnen" open the app; vehicles are selectable entities; German
+  Siri phrases; only on an unlocked device
+- Widget "Fahrzeug" (#22, first part): small (Ø consumption, next due date),
+  medium (plus "Tanken"/"Laden" buttons that open the entry sheet), Lock
+  Screen rectangular, circular and inline; vehicle chosen in the widget
+  settings; data from `/stats` and `/reminders`, sign-in shared with the app
+  through Keychain Sharing; links use `fuelstat://`
+- Home Screen quick actions (long press on the icon): Tanken, Laden, vehicles
 - Welcome screen, sign-in with labelled fields, 2FA as six digit boxes
   (one-time-code autofill), own server under "Eigener Server"
 - Sign in / register (incl. 2FA code), token stored in the Keychain, renewed
@@ -73,7 +100,10 @@ stays in the project for now.
 ### Project structure
 
 - `Fuelstat.xcodeproj` – iOS app (SwiftUI, iOS 17+)
-- `Fuelstat/` – app sources (models, views)
+- `Fuelstat/` – app sources (models, views, App Intents)
+- `Shared/` – API client, models and Keychain, used by app and widgets
+- `FuelstatWidgets/` – widget extension
+- `Config/` – Info.plist additions and entitlements
 - `Packages/FuelstatCore` – platform-independent logic (consumption calculation,
   server address parsing, image cache keys) with tests
 

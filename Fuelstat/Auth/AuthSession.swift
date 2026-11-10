@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 @MainActor
 @Observable
@@ -23,6 +24,12 @@ final class AuthSession {
 
     init(api: APIClient = .configured) {
         self.api = api
+    }
+
+    /// The signed-in account, or nil.
+    var user: APIUser? {
+        if case .signedIn(let user) = state { return user }
+        return nil
     }
 
     /// Validates a stored token via `/whoami`. Keeps the user signed in when offline.
@@ -61,11 +68,110 @@ final class AuthSession {
     func login(email: String, password: String, code: String? = nil) async throws {
         let response = try await api.login(email: email, password: password, code: code)
         signIn(response)
+        await refreshUser()
     }
 
     func register(email: String, password: String) async throws {
         let response = try await api.register(email: email, password: password)
         signIn(response)
+        await refreshUser()
+    }
+
+    /// Reloads the account from `/whoami` (verification state, terms, 2FA, profile). Errors keep the known data.
+    func refreshUser() async {
+        guard let user = try? await call({ try await $0.whoami(token: $1) }) else { return }
+        update(user)
+    }
+
+    // MARK: - Account settings
+
+    func updateProfile(_ patch: ProfilePatch) async throws {
+        guard let id = user?.id else { throw APIError.unauthorized }
+        let updated = try await call { try await $0.updateProfile(userID: id, patch, token: $1) }
+        merge(updated)
+    }
+
+    /// Uploads a photo and makes it the profile picture.
+    func setProfilePhoto(_ image: UIImage) async throws {
+        guard let id = user?.id else { throw APIError.unauthorized }
+        guard let jpeg = VehicleStore.jpeg(from: image, maxEdge: 800) else {
+            throw APIError.server(code: "invalid_image", status: 0)
+        }
+        let media = try await call { try await $0.uploadProfileImage(jpeg: jpeg, token: $1) }
+        let updated = try await call {
+            try await $0.updateProfile(userID: id, ProfilePatch(profileImageUrl: .some(media.url)), token: $1)
+        }
+        if let url = api.resolve(updated.profileImageURL) {
+            await ImageCache.shared.store(image, data: jpeg, for: url)
+        }
+        merge(updated)
+    }
+
+    func removeProfilePhoto() async throws {
+        try await updateProfile(ProfilePatch(profileImageUrl: .some(nil)))
+    }
+
+    /// Changes the password. The API signs out all other devices and hands this one a new token.
+    func changePassword(current: String, new: String) async throws {
+        let renewed = try await call { try await $0.changePassword(current: current, new: new, token: $1) }
+        KeychainStore.saveToken(renewed)
+        token = renewed
+        UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)
+    }
+
+    /// Sends the confirmation mail again. Returns the address it went to.
+    func resendVerification() async throws -> String? {
+        try await call { try await $0.resendVerification(token: $1) }.email
+    }
+
+    func acceptTerms(version: String) async throws {
+        try await call { try await $0.acceptTerms(version: version, token: $1) }
+        await refreshUser()
+        // Without a fresh /whoami the prompt would come back; mark it accepted locally.
+        if var user, user.terms?.required == true {
+            user.terms = APIUser.Terms(version: version, acceptedVersion: version, required: false)
+            update(user)
+        }
+    }
+
+    /// Signs out on every device, this one included.
+    func signOutEverywhere() async throws {
+        guard let id = user?.id else { throw APIError.unauthorized }
+        try await call { try await $0.revokeAll(userID: id, token: $1) }
+        clear(notice: String(localized: "Du wurdest auf allen Geräten abgemeldet."))
+    }
+
+    func setUpMFA() async throws -> MFASetup {
+        try await call { try await $0.mfaSetup(token: $1) }
+    }
+
+    func enableMFA(code: String) async throws {
+        try await call { try await $0.mfaEnable(code: code, token: $1) }
+        setMFA(true)
+    }
+
+    func disableMFA(password: String, code: String) async throws {
+        try await call { try await $0.mfaDisable(password: password, code: code, token: $1) }
+        setMFA(false)
+    }
+
+    private func setMFA(_ enabled: Bool) {
+        guard var user else { return }
+        user.mfaEnabled = enabled
+        update(user)
+    }
+
+    /// PATCH answers without `terms`; keep the known value.
+    private func merge(_ updated: APIUser) {
+        var updated = updated
+        if updated.terms == nil { updated.terms = user?.terms }
+        update(updated)
+    }
+
+    private func update(_ user: APIUser) {
+        guard case .signedIn(let current) = state, current.id == user.id else { return }
+        storeUser(user)
+        state = .signedIn(user)
     }
 
     func logout() async {
@@ -73,6 +179,27 @@ final class AuthSession {
             try? await api.revoke(token: token)
         }
         clear()
+    }
+
+    /// Deletes the account on the server, then removes everything the app stored on this device
+    /// (token, cached images, settings) and returns to the welcome screen.
+    func deleteAccount() async throws {
+        guard case .signedIn(let user) = state, let token else { throw APIError.unauthorized }
+        do {
+            try await api.deleteAccount(userID: user.id, token: token)
+        } catch APIError.server(code: "user_not_found", _), APIError.server(code: "account_not_found", _) {
+            // Already gone (e.g. deleted in the web app): clean up all the same.
+        } catch APIError.unauthorized {
+            clear(notice: APIError.unauthorized.localizedDescription)
+            throw APIError.unauthorized
+        }
+        await ImageCache.shared.removeAll()
+        ServerSettings.save(APIClient.defaultBaseURL)
+        if let domain = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+        }
+        api.baseURL = ServerSettings.baseURL
+        clear(notice: String(localized: "Dein Konto wurde gelöscht."))
     }
 
     /// Runs an API call with the current token. An expired or revoked token signs the user out.
@@ -117,6 +244,7 @@ final class AuthSession {
         UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)
         storeUser(response.user)
         state = .signedIn(response.user)
+        WidgetRefresh.reload()
     }
 
     private func clear(notice: String? = nil) {
@@ -127,6 +255,7 @@ final class AuthSession {
         token = nil
         signOutNotice = notice
         state = .signedOut
+        WidgetRefresh.reload()
     }
 
     // Non-secret profile data, so the app can start offline.

@@ -19,7 +19,19 @@ struct MainTabView: View {
         .onAppear {
             if store == nil { store = VehicleStore(auth: auth) }
         }
+        .fullScreenCover(item: Binding(
+            get: { auth.user?.terms.flatMap { $0.required ? $0.version : nil }.map(PendingTerms.init) },
+            set: { _ in }
+        )) { pending in
+            TermsPromptView(version: pending.version)
+        }
     }
+}
+
+/// Terms of use the user still has to accept, as an item for `fullScreenCover`.
+private struct PendingTerms: Identifiable {
+    let version: String
+    var id: String { version }
 }
 
 /// Destinations reachable from several tabs.
@@ -27,6 +39,14 @@ enum Route: Hashable {
     case vehicle(String)
     case reminders(String)
     case vehicles
+    case feedback
+    case releaseNotes
+    case deleteAccount
+    case account
+    case accountUsername
+    case accountEmail
+    case accountPassword
+    case accountTwoFactor
 }
 
 /// What the quick-entry sheet starts with.
@@ -50,6 +70,7 @@ private struct MainTabs: View {
     /// Changes after an entry was saved, so the tabs reload their data.
     @State private var refresh = 0
     @State private var profilePath: [Route] = []
+    @State private var router = IntentRouter.shared
     @Environment(\.colorScheme) private var colorScheme
 
     private var selection: Binding<String?> {
@@ -95,8 +116,18 @@ private struct MainTabs: View {
                 .tabItem { Label("Profil", systemImage: "person.crop.circle") }
                 .tag(Tab.profile)
         }
-        .task { await store.load() }
+        .task {
+            await store.load()
+            // Lets Siri understand phrases with vehicle names ("VW Golf in Fuelstat öffnen").
+            FuelstatShortcuts.updateAppShortcutParameters()
+        }
         .onChange(of: selectedID) { VehicleSelection.storedID = selectedID }
+        .onChange(of: store.vehicles.map(\.id), initial: true) {
+            QuickActions.update(for: store.vehicles, selectedID: store.resolvedSelection(selectedID))
+        }
+        .onChange(of: router.pending, initial: true) { handleIntentRequest() }
+        .onChange(of: store.hasLoaded) { handleIntentRequest() }
+        .onChange(of: router.savedEntries) { refresh += 1 }
         .sheet(item: $entry, onDismiss: { refresh += 1 }) { kind in
             FillupEntryView(store: store, vehicleID: store.resolvedSelection(selectedID), kind: kind)
         }
@@ -119,6 +150,23 @@ private struct MainTabs: View {
             }
         }
         return image.withRenderingMode(.alwaysOriginal)
+    }
+
+    /// Carries out what an intent asked for (open the entry sheet or a vehicle) once the vehicles are loaded.
+    private func handleIntentRequest() {
+        guard let request = router.pending, store.hasLoaded else { return }
+        router.pending = nil
+        switch request {
+        case .addEntry(let kind, let vehicleID):
+            if let vehicleID, store.vehicle(vehicleID) != nil { selectedID = vehicleID }
+            entry = nil
+            openEntry(kind)
+        case .openVehicle(let id):
+            guard store.vehicle(id) != nil else { return }
+            entry = nil
+            selectedID = id
+            tab = .start
+        }
     }
 
     private func openEntry(_ kind: EntryKind?) {
@@ -144,6 +192,14 @@ extension View {
             case .vehicle(let id): RemoteVehicleDetailView(vehicleID: id, store: store)
             case .reminders(let id): RemindersListView(store: store, vehicleID: id)
             case .vehicles: VehicleManagementView(store: store)
+            case .feedback: FeedbackView()
+            case .releaseNotes: ReleaseNotesView()
+            case .deleteAccount: DeleteAccountView()
+            case .account: AccountView()
+            case .accountUsername: UsernameEditView()
+            case .accountEmail: EmailEditView()
+            case .accountPassword: PasswordChangeView()
+            case .accountTwoFactor: TwoFactorView()
             }
         }
     }

@@ -1,6 +1,7 @@
+import FuelstatCore
 import SwiftUI
 
-/// Profil: account, vehicles, server and sign-out.
+/// Profil: account, vehicles, feedback, sign-out, about, legal pages and account deletion.
 struct ProfileView: View {
     @Environment(AuthSession.self) private var auth
     @Bindable var store: VehicleStore
@@ -8,41 +9,46 @@ struct ProfileView: View {
 
     @State private var confirmingLogout = false
     @State private var serverVersion: String?
+    @State private var termsVersion: String?
+    @State private var webPage: WebPage?
 
-    private var email: String? {
-        if case .signedIn(let user) = auth.state { return user.email }
-        return nil
-    }
-
-    private var version: String {
-        let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "–"
-        let build = info?["CFBundleVersion"] as? String ?? "–"
-        return "\(short) (\(build))"
-    }
+    private var version: String { "\(AppInfo.version) (\(AppInfo.build))" }
 
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                Section {
-                    HStack(spacing: Theme.Spacing.s) {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.largeTitle)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(Theme.brand)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(email ?? "")
-                                .font(.headline)
-                            Text("Server: \(ServerSettings.displayName(of: auth.api.baseURL))")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                if let user = auth.user {
+                    Section {
+                        NavigationLink(value: Route.account) {
+                            HStack(spacing: Theme.Spacing.s) {
+                                ProfileAvatar(user: user, size: 48)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(user.displayName)
+                                        .font(.headline)
+                                    if user.username != nil {
+                                        Text(user.email)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text("Server: \(ServerSettings.displayName(of: auth.api.baseURL))")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, Theme.Spacing.xxs)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityHint(Text("Profil, Passwort und Zwei-Faktor-Anmeldung"))
                         }
                     }
-                    .padding(.vertical, Theme.Spacing.xxs)
-                    .accessibilityElement(children: .combine)
+                    .listRowBackground(Theme.card)
+
+                    if user.needsEmailConfirmation {
+                        Section {
+                            EmailConfirmationNotice(user: user)
+                        }
+                        .listRowBackground(Theme.card)
+                    }
                 }
-                .listRowBackground(Theme.card)
 
                 Section {
                     NavigationLink(value: Route.vehicles) {
@@ -51,6 +57,16 @@ struct ProfileView: View {
                         } label: {
                             Label("Fahrzeuge", systemImage: "car.2")
                         }
+                    }
+                }
+                .listRowBackground(Theme.card)
+
+                Section("Hilfe und Feedback") {
+                    NavigationLink(value: Route.feedback) {
+                        Label("Feedback senden", systemImage: "bubble.left.and.text.bubble.right")
+                    }
+                    NavigationLink(value: Route.releaseNotes) {
+                        Label("Neuigkeiten", systemImage: "sparkles")
                     }
                 }
                 .listRowBackground(Theme.card)
@@ -73,12 +89,35 @@ struct ProfileView: View {
                     }
                 }
                 .listRowBackground(Theme.card)
+
+                Section {
+                    WebPageRow(page: .imprint, selection: $webPage)
+                    WebPageRow(page: .privacy, selection: $webPage)
+                    WebPageRow(page: .terms, detail: termsVersion.map { String(localized: "Fassung \($0)") },
+                               selection: $webPage)
+                } header: {
+                    Text("Rechtliches")
+                } footer: {
+                    Text("Seiten von \(ServerSettings.displayName(of: auth.api.baseURL))")
+                }
+                .listRowBackground(Theme.card)
+
+                Section {
+                    NavigationLink(value: Route.deleteAccount) {
+                        Label("Konto löschen", systemImage: "person.crop.circle.badge.xmark")
+                            .foregroundStyle(Theme.Status.overdue)
+                    }
+                } footer: {
+                    Text("Löscht dein Konto mit allen Fahrzeugen und Einträgen.")
+                }
+                .listRowBackground(Theme.card)
             }
             .themedBackground()
             .navigationTitle("Profil")
             .task { await loadServerVersion() }
             .refreshable { await loadServerVersion() }
             .vehicleRoutes(store: store)
+            .webPageSheet($webPage, apiBaseURL: auth.api.baseURL)
             .confirmationDialog("Abmelden?", isPresented: $confirmingLogout, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await auth.logout() } }
             }
@@ -88,6 +127,9 @@ struct ProfileView: View {
     private func loadServerVersion() async {
         if let health = try? await auth.api.health() {
             serverVersion = health.version ?? String(localized: "unbekannt")
+            termsVersion = health.termsVersion.map {
+                TermsVersion.date(from: $0)?.formatted(date: .numeric, time: .omitted) ?? $0
+            }
         } else if serverVersion == nil {
             serverVersion = String(localized: "nicht erreichbar")
         }

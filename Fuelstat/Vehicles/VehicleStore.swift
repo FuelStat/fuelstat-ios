@@ -26,6 +26,8 @@ final class VehicleStore {
             loadError = nil
             hasLoaded = true
             await loadStats()
+            // Vehicles may have been renamed, added or removed; reloading in the foreground costs no widget budget.
+            WidgetRefresh.reload()
         } catch is CancellationError {
             return
         } catch {
@@ -133,23 +135,13 @@ final class VehicleStore {
 
     /// Due dates, most urgent first: overdue, soon, then by days left.
     func reminders(of id: String) async throws -> [RemoteReminder] {
-        let list = try await auth.call { try await $0.reminders(vehicleID: id, token: $1) }
-        func rank(_ status: RemoteReminder.Status) -> Int {
-            switch status {
-            case .overdue: 0
-            case .soon: 1
-            case .ok: 2
-            case .unknown: 3
-            }
-        }
-        return list.sorted {
-            (rank($0.status), $0.days ?? .max) < (rank($1.status), $1.days ?? .max)
-        }
+        RemoteReminder.byUrgency(try await auth.call { try await $0.reminders(vehicleID: id, token: $1) })
     }
 
     /// Saves a fill-up and refreshes the vehicle's key figures. Returns the API's odometer warnings.
     func addFillup(_ input: FillupInput) async throws -> [String] {
         let created = try await auth.call { try await $0.createFillup(input, token: $1) }
+        WidgetRefresh.reload()
         UserDefaults.standard.set(input.vehicleId, forKey: Self.lastVehicleKey)
         if let figures = try? await auth.call({ try await $0.stats(vehicleID: input.vehicleId, token: $1) }) {
             stats[input.vehicleId] = figures
@@ -173,11 +165,17 @@ final class VehicleStore {
 
     /// The vehicle used for the last fill-up, as default for the next one.
     var lastUsedVehicleID: String? {
-        let id = UserDefaults.standard.string(forKey: Self.lastVehicleKey)
+        let id = Self.storedLastVehicleID
         return vehicles.contains { $0.id == id } ? id : vehicles.first?.id
     }
 
-    private static let lastVehicleKey = "fillup.lastVehicleID"
+    private nonisolated static let lastVehicleKey = "fillup.lastVehicleID"
+
+    /// The vehicle of the last fill-up saved in the app, also used by Siri and Shortcuts.
+    nonisolated static var storedLastVehicleID: String? {
+        get { UserDefaults.standard.string(forKey: lastVehicleKey) }
+        set { UserDefaults.standard.set(newValue, forKey: lastVehicleKey) }
+    }
 
     private func replace(_ vehicle: RemoteVehicle) {
         if let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
@@ -193,7 +191,7 @@ final class VehicleStore {
     }
 
     /// The server shrinks photos to 1600 px anyway; doing it here keeps uploads small on mobile data.
-    private static func jpeg(from image: UIImage, maxEdge: CGFloat = 1600) -> Data? {
+    static func jpeg(from image: UIImage, maxEdge: CGFloat = 1600) -> Data? {
         let size = image.size
         let scale = min(1, maxEdge / max(size.width, size.height))
         let target = CGSize(width: (size.width * scale).rounded(), height: (size.height * scale).rounded())

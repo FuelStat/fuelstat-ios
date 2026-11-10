@@ -43,6 +43,15 @@ actor ImageCache {
         return image
     }
 
+    /// Removes all cached photos, e.g. after the account was deleted.
+    func removeAll() {
+        memory.removeAllObjects()
+        for task in running.values { task.cancel() }
+        running = [:]
+        try? FileManager.default.removeItem(at: directory)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
     /// Stores a photo the user just uploaded, so it shows immediately without downloading it again.
     func store(_ image: UIImage, data: Data, for url: URL) {
         let key = ImageCacheKey.key(for: url)
