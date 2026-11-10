@@ -96,6 +96,30 @@ cd Packages/FuelstatCore
 swift test
 ```
 
+## Roadmap
+
+Planning uses the [milestones](https://github.com/FuelStat/fuelstat-ios/milestones)
+of this repository, one per app version. The app version is independent of the
+web app/API version; what the app needs from the API is planned in
+[FuelStat/fuelstat](https://github.com/FuelStat/fuelstat/milestones) (milestone
+2.0.0, tracking issue [FuelStat/fuelstat#116](https://github.com/FuelStat/fuelstat/issues/116)).
+The full feature list is [#15](https://github.com/FuelStat/fuelstat-ios/issues/15).
+
+| Version | Focus |
+|---|---|
+| [0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1) | Sign-in and account complete (2FA setup, password, devices, profile), account deletion, imprint and privacy policy, test checklist per release |
+| [0.3.0 – Capture](https://github.com/FuelStat/fuelstat-ios/milestone/2) | Record everything online: charging with nearby chargers, expenses and categories, odometer-only entries, logbook, editing entries |
+| [0.4.0 – Insights & Reminders](https://github.com/FuelStat/fuelstat-ios/milestone/3) | Full statistics and costs, local reminders, plan display, onboarding, sharing vehicles |
+| [0.5.0 – Native](https://github.com/FuelStat/fuelstat-ios/milestone/4) | More than the web: offline capture and sync, Siri/Shortcuts/Spotlight (App Intents), Face ID lock |
+| [0.6.0 – Glance](https://github.com/FuelStat/fuelstat-ios/milestone/5) | Widgets, camera recognition, export and report via the share sheet |
+| [1.0.0 – App Store](https://github.com/FuelStat/fuelstat-ios/milestone/6) | Parity with the web app, CSV import, push, TestFlight and App Store (paid developer program) |
+| [Later](https://github.com/FuelStat/fuelstat-ios/milestone/7) | Ideas without a date: CarPlay, StoreKit, live trips, Apple Watch |
+
+Guideline: first a complete, reliable app for everyday use, then what only a
+native app can do. Features that need the paid Apple Developer Program
+(push, TestFlight, CarPlay, StoreKit, possibly widgets) wait for the decision in
+[#39](https://github.com/FuelStat/fuelstat-ios/issues/39).
+
 ## License
 
 See LICENSE.

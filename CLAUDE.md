@@ -1,7 +1,7 @@
 # Fuelstat iOS – notes for Claude and other agents
 
-Native iPhone app for Fuelstat (SwiftUI, iOS 17+). The backend, the web app and
-the central planning live in [FuelStat/fuelstat](https://github.com/FuelStat/fuelstat).
+Native iPhone app for Fuelstat (SwiftUI, iOS 17+). The backend and the web app
+live in [FuelStat/fuelstat](https://github.com/FuelStat/fuelstat).
 
 ## Scope and goal
 
@@ -9,9 +9,13 @@ the central planning live in [FuelStat/fuelstat](https://github.com/FuelStat/fue
   The app must cover everything the web app does, and do more where native iOS
   allows it. Read #15 before starting a feature; tick items off there and link
   the issue or PR when done. If the web app gains a feature, add it to #15.
-- Planning is central: milestones exist only in FuelStat/fuelstat. App issues
-  live here and hang as sub-issues under a tracking issue per version there
-  (2.0.0: FuelStat/fuelstat#116). Do not create milestones in this repo.
+- **Planning: one milestone per app version in this repo** (`0.2.0 – Foundation`
+  … `1.0.0 – App Store`, plus `Later`), see the README section "Roadmap". Every
+  open issue has a milestone; new issues get one when they are created.
+- Backend prerequisites stay in FuelStat/fuelstat (milestone 2.0.0 there) and
+  are named in the app issue ("Benötigt: FuelStat/fuelstat#…"). App issues up
+  to 1.0.0 also hang as sub-issues under FuelStat/fuelstat#116, so the backend
+  planning sees what the app needs.
 
 ## Rules
 
@@ -84,7 +88,8 @@ The app has its own version, independent of the web app/API version.
 
 Steps:
 
-1. Feature PRs keep the README section "Current state" up to date.
+1. Feature PRs keep the README section "Current state" up to date. The
+   planned versions are the milestones; a release ships its milestone.
 2. **Prepare** a release PR: bump `MARKETING_VERSION` and
    `CURRENT_PROJECT_VERSION`, update the README, run the tests and the CI build.
 3. **Merge** the PR.
@@ -111,6 +116,8 @@ and deployed. Only create or push tags when the maintainer explicitly asks.
 Check before opening the PR, and remind the maintainer at the end of a task of
 anything still missing:
 
+- **Milestone:** the issue (and the PR) is in the milestone of the app
+  version it ships with.
 - **Feature reference:** items in #15 ticked off (with a link to the PR) or
   added when the web app gained something new.
 - **README:** section "Current state" matches what the app can do.
@@ -127,6 +134,7 @@ anything still missing:
 ## Workflow
 
 - Branch per feature, PR into `main`; reference the issue (`Fixes #5`) and,
-  for API work, the FuelStat/fuelstat issue it depends on.
+  for API work, the FuelStat/fuelstat issue it depends on. Work on the earliest
+  open milestone first.
 - Head branches are deleted automatically after merge.
 - Keep the README section "Current state" in sync with what the app can do.
