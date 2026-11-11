@@ -57,10 +57,11 @@ Tab bar with four tabs and a central log action:
 
 ### Quick entry (sheet)
 - Type picker at the top as large chips with icons: Tanken, Laden, Ausgabe,
-  Kilometerstand.
+  Kilometerstand. Chips are `CardTint` with the icon in the energy colour,
+  the selected one `Brand`; never a coloured tile with white text.
 - Nearby stations as horizontal cards with name, distance and price; the
   selected one is highlighted. Recently used stations first.
-- Big numeric fields for amount, price per unit and total (any two fill the
+- Big numeric fields (`NumberField`, never `CodeField`) for amount, price per unit and total (any two fill the
   third), odometer with the plausibility hint from the API inline.
 - Chips for Voll / Teil. Primary button full width at the bottom: "Speichern".
 - Works offline; an unsent entry shows a small "wartet auf Übertragung" badge.
@@ -147,7 +148,9 @@ The shared components from the central document live in `Fuelstat/Design/`:
 - `VehicleSwitcher` – header button and sheet
 - `EntryRow` – icon circle, title, subtitle, amount
 - `PrimaryButton` – full width, brand colour, loading state
-- `CodeField` – six-digit 2FA input
+- `NumberField` – big numeric field with visible label and unit (odometer,
+  quantity, price, amount); to be built with the quick-entry sheet
+- `CodeField` – six-digit input, **2FA only**
 
 Every component gets a SwiftUI preview in light and dark mode and at a large
 Dynamic Type size.
