@@ -35,8 +35,13 @@ live in [FuelStat/fuelstat](https://github.com/FuelStat/fuelstat).
   are in English.
 - Accessibility is part of every feature: VoiceOver labels, Dynamic Type,
   dark mode.
-- **Design: follow [`docs/design.md`](docs/design.md)** (navigation, screens,
-  colour and spacing tokens, shared components in `Fuelstat/Design/`).
+- **Design: follow the shared design document
+  [FuelStat/fuelstat `docs/design.md`](https://github.com/FuelStat/fuelstat/blob/main/docs/design.md)**
+  (single source of truth for colour, type, spacing and radius tokens,
+  components, platform guardrails, accessibility) **and
+  [`docs/design.md`](docs/design.md)** here for the iOS specifics (SwiftUI
+  mapping, screens, components in `Fuelstat/Design/`). Token values are
+  changed in the shared document first, never only here.
 - Signing uses a **free Apple developer account** (Personal Team). Do not add
   capabilities that need the paid program (Push Notifications, iCloud, Sign in
   with Apple, App Groups …) without asking first – the device build breaks.
@@ -143,7 +148,8 @@ anything still missing:
   merged, released (tag) and deployed – check `GET /api/v1/health` – before the
   app release that needs it.
 - **Strings:** new user-facing text is in `Localizable.xcstrings` (German).
-- **Design:** new screens and components follow `docs/design.md`.
+- **Design:** new screens and components follow the shared design document
+  (FuelStat/fuelstat `docs/design.md`) and `docs/design.md` here.
 - **Tests:** new logic in `FuelstatCore` has tests; CI is green.
 
 ## Workflow
