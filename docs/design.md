@@ -1,30 +1,17 @@
 # Fuelstat iOS – design
 
-How the app should look and feel. Applies to every new screen; existing screens
-are migrated step by step. Feature scope is in #15, this file covers the visual
-and interaction side only.
+**The shared design lives in
+[FuelStat/fuelstat `docs/design.md`](https://github.com/FuelStat/fuelstat/blob/main/docs/design.md)**
+(German): direction, brand, colour tokens with light and dark values, type
+roles, spacing grid, radii, shared components, platform guardrails and the
+accessibility baseline. It is the single source of truth for Web/PWA, iOS and
+Android (FuelStat/fuelstat#153). Never define a token value here; change it
+there first, then in the asset catalog and `Fuelstat/Design/Theme.swift`.
 
-## Direction
+This file only covers what is specific to iOS: how the shared structure is
+built in SwiftUI. Feature scope is in #15.
 
-**Calm, card-based, photo-forward, one strong colour.** The inspiration came from
-mobility and car app concepts (soft lavender-grey backgrounds, large rounded
-cards, one strong brand colour on a dark navy anchor, big vehicle photos, chips and bottom
-sheets). We take the *principles*, not the layouts or assets of those shots,
-and apply them to what Fuelstat is: a personal vehicle companion, not a shop or
-rental app. There is no "Buy", "Book now", brand grid, ratings or chat.
-
-Guiding ideas:
-
-1. **The vehicle is the hero.** Its photo and name anchor every vehicle screen.
-2. **Numbers first.** Consumption, cost per km and the next due date are the
-   reason people open the app; show them big, early and without tapping.
-3. **One tap to log.** Logging a fill-up or charging session is always one tap
-   away, from anywhere.
-4. **Native, not a web page.** System components, SF Symbols, system font,
-   Dynamic Type, sheets and swipe actions. On iOS 26 the system bars pick up
-   Liquid Glass automatically; do not fight that with custom chrome.
-
-## Navigation
+## Navigation (iOS)
 
 Tab bar with four tabs and a central log action:
 
@@ -45,7 +32,7 @@ Tab bar with four tabs and a central log action:
 - Vehicle management (list, add, sort) lives under Profil → Fahrzeuge and is
   reachable from the switcher sheet ("Fahrzeuge verwalten").
 
-## Screens
+## Screens (iOS layout)
 
 ### Start
 1. Header: vehicle switcher left, profile picture right (small circle).
@@ -101,8 +88,8 @@ Tab bar with four tabs and a central log action:
   icons for chargers. The current location button sits top right.
 
 ### Onboarding, sign-in, 2FA
-- Welcome: one full-colour brand screen in both modes: navy `#0A1C33`
-  background like the app icon, white text, teal accents, the gauge motif of
+- Welcome: one full-colour brand screen in both modes: navy background
+  (see "Marke" in the shared document) like the app icon, white text, teal accents, the gauge motif of
   the icon as illustration; then "Anmelden" / "Konto erstellen".
 - Sign-in and registration on a plain background: title, short subtitle,
   fields with visible labels, primary button, secondary link. Server address
@@ -112,90 +99,43 @@ Tab bar with four tabs and a central log action:
 - First-run flow afterwards: add first vehicle → log first entry (as in the
   web app's onboarding).
 
-## Visual language
+## iOS mapping of the shared tokens
 
-### Colour
+- **Colours:** named colours in `Assets.xcassets` with light and dark
+  variants, same names as the tokens (`Brand`, `OnBrand`, `BrandDeep`,
+  `Background`, `Card`, `CardTint`, `Status*`, `Energy*`), accessed only via
+  `Theme`. `Text`, `TextSecondary` and `Separator` use the system colours
+  (`.primary`, `.secondary`, `separator`) so "Increase Contrast" keeps working.
+  The widget extension keeps copies of the colours it uses in its own asset
+  catalog; update both.
+- **Spacing and radii:** `Theme.Spacing` (`xxs` … `xl`) and `Theme.Radius`
+  (`card` 20, `tile` 14) with continuous corners (`.card`, `.tile` shapes);
+  chips and badges use `Capsule()`.
+- **Type roles → Dynamic Type:** `screenTitle` `.largeTitle` bold (navigation
+  large title), `figureHero` `.title` bold rounded, `sectionTitle` `.title3`
+  bold, `figure` `.title2` bold rounded, `headline` `.headline`, `body`
+  `.body`, `label` `.subheadline`, `footnote` `.footnote`, `unit` `.caption`.
+  Figures use `.fontDesign(.rounded)` and `.monospacedDigit()`. Only text
+  styles, no fixed sizes.
 
-One brand colour, one dark anchor, otherwise neutral. The palette comes from
-the app icon: the **petrol/teal of the car** is the brand colour, the **navy of
-the icon background** is the dark anchor, and the **gauge scale** (green →
-yellow → orange) supplies the status colours. Petrol sits between blue
-(technology, trust) and green (electricity, saving) and therefore fits an app
-for combustion *and* electric vehicles; pure green stays free for status and
-electricity.
+## iOS specifics
 
-Define everything as named colours in the asset catalog with light and dark
-variants; never hard-code hex values in views.
-
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `Brand` | petrol `#0A717A` | teal `#5ED3CF` | Primary buttons, "+", selected chips, links |
-| `OnBrand` | white | navy `#0A1C33` | Text and icons on `Brand` fills (white on the light teal would be too weak) |
-| `BrandDeep` | navy `#0A1C33` | `#DCE8F5` | Hero headers, welcome screen, headings on tinted areas |
-| `Background` | `#F2F6F8` (cool light grey) | system background | Screen background |
-| `Card` | white | `#1A2230` | Cards, sheets |
-| `CardTint` | `#E2F1F2` | `#22303A` | Stat tiles, icon circles, unselected chips |
-
-Checked contrast: `Brand` on white 5.7:1, on `Background` 5.3:1, on `CardTint`
-5.0:1; dark `Brand` on `Card` 8.9:1, on `CardTint` 7.5:1; `OnBrand` on `Brand`
-5.7:1 (light) and 9.5:1 (dark); `BrandDeep` on white 17:1, dark on `Card` 12.9:1.
-
-In dark mode the app should feel like the icon: navy surfaces with teal accents.
-
-Status and energy colours are semantic and always paired with an icon or text,
-never colour alone:
-
-- Status, taken from the gauge in the icon: `OK` green, `Bald fällig` yellow/amber,
-  `Überfällig` orange-red.
-- Energy, fixed per fuel type for icons and chart series: electricity green (the
-  former app accent `#0F883B`), petrol yellow, diesel orange, LPG/CNG blue,
-  hydrogen cyan. Choose the exact shades so each reaches 3:1 against `Card` in
-  both modes (yellow needs a darker shade in light mode).
-
-All text and icon colours must reach WCAG AA contrast (4.5:1 for text, 3:1 for
-large text and icons) in both modes. Several inspiration shots use tiny
-light-grey text – we do not.
-
-The web app should move to the same tokens over time so both clients look like
-one product.
-
-### Shape and spacing
-
-- Corner radius: cards and sheets 20 pt, tiles and fields 14 pt, buttons 14 pt
-  or capsule, chips capsule. Use continuous corners.
-- Spacing scale: 4, 8, 12, 16, 24, 32. Screen margin 16 pt, gap between cards
-  16 pt, padding inside cards 16 pt.
-- Shadows: at most one soft shadow on floating elements (the "+", sheets over
-  photos). Cards on the tinted background need no shadow.
-
-### Typography
-
-- System font (SF Pro) with Dynamic Type text styles only; no fixed sizes.
-- Screen titles: `.largeTitle` bold (navigation large title).
-- Key figures: `.title` / `.title2` with `.fontDesign(.rounded)` and
-  `.monospacedDigit()`, unit in `.caption` next to it.
-- Labels: `.subheadline` secondary; never below `.footnote` for information
-  the user needs.
-
-### Icons and images
-
-- SF Symbols throughout (`fuelpump`, `bolt.car`, `gauge.with.needle`,
-  `wrench.and.screwdriver`, `calendar.badge.exclamationmark` …).
-- Vehicle photos: user photos, shown with rounded corners and a subtle bottom
-  gradient. Without a photo: tinted placeholder with `car.side` symbol in the
-  energy colour of the vehicle.
-- Entry icons sit in a 36 pt tinted circle.
-
-### Motion and haptics
-
-- Standard SwiftUI transitions; matched geometry from vehicle card to detail
-  hero is welcome.
-- Haptic success feedback after saving an entry; warning feedback for
-  plausibility hints. Respect "Reduce Motion".
+- **System chrome:** on iOS 26 tab bar, navigation bar and sheets pick up
+  Liquid Glass automatically; do not paint over them with custom backgrounds.
+- **Icons:** SF Symbols throughout (`fuelpump`, `bolt.car`,
+  `gauge.with.needle`, `wrench.and.screwdriver`,
+  `calendar.badge.exclamationmark` …). Without a vehicle photo: tinted
+  placeholder with `car.side` in the vehicle's energy colour. Entry icons sit
+  in a 36 pt tinted circle.
+- **Motion and haptics:** standard SwiftUI transitions; matched geometry from
+  vehicle card to detail hero is welcome. Haptic success after saving an
+  entry, warning for plausibility hints (`Haptics`). Respect Reduce Motion.
+- **Charts:** Swift Charts with `accessibilityChartDescriptor` or an
+  accessibility summary per chart.
 
 ## Components to build
 
-Put shared building blocks in `Fuelstat/Design/` so screens stay consistent:
+The shared components from the central document live in `Fuelstat/Design/`:
 
 - `Theme` – colour and spacing tokens
 - `CardContainer` – background, radius, padding
@@ -217,5 +157,5 @@ Dynamic Type size.
 - No custom fonts, no hard-coded colours or sizes in views.
 - No information conveyed by colour only.
 - No placeholder text as the only label of a field.
+- No custom tab bars or toolbars that replace the system ones.
 - No marketing banners on the Start screen; the space belongs to the user's data.
-- No elements copied from the inspiration shots (logos, photos, layouts one to one).

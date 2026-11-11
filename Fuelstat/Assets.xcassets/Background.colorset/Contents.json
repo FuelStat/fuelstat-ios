@@ -20,8 +20,13 @@
         }
       ],
       "color": {
-        "platform": "ios",
-        "reference": "systemBackgroundColor"
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "red": "0.055",
+          "green": "0.086",
+          "blue": "0.141"
+        }
       },
       "idiom": "universal"
     }

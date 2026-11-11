@@ -42,8 +42,11 @@ Store build. Version 0.1.0 marks this state; the first regular release is
 The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
 self-hosted servers can be entered on the sign-in screen):
 
-- Design from `docs/design.md`: colour tokens in the asset catalog (light and
-  dark), shared components in `Fuelstat/Design/`
+- Design from the shared design document
+  ([FuelStat/fuelstat `docs/design.md`](https://github.com/FuelStat/fuelstat/blob/main/docs/design.md))
+  and the iOS specifics in `docs/design.md`: colour tokens in the asset catalog
+  (light and dark, dark background in navy like the app icon), shared
+  components in `Fuelstat/Design/`
 - Tabs Start · Einträge · Statistik · Profil with a central "+" for quick entry;
   vehicle switcher at the top, the choice is remembered
 - Start: vehicle hero, key figures, due dates (`/reminders`), cheapest nearby
