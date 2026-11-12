@@ -1,3 +1,4 @@
+import FuelstatCore
 import SwiftUI
 
 /// All fill-ups and charging sessions of the selected vehicle, grouped by month, with search and filter chips.
@@ -15,6 +16,7 @@ struct EntriesView: View {
 
     @State private var fillups: [RemoteFillup] = []
     @State private var canLoadMore = false
+    @State private var loadedPages = 0
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var filter: Filter = .all
@@ -161,9 +163,10 @@ struct EntriesView: View {
         isLoading = fillups.isEmpty
         defer { isLoading = false }
         do {
-            let page = try await store.fillups(of: id, limit: Self.pageSize, offset: 0)
-            fillups = page
-            canLoadMore = page.count == Self.pageSize
+            let page = try await store.fillups(of: id, page: 1, perPage: Self.pageSize)
+            fillups = page.data
+            loadedPages = 1
+            canLoadMore = page.pagination.hasMore
             errorMessage = nil
         } catch is CancellationError {
             return
@@ -174,12 +177,13 @@ struct EntriesView: View {
 
     private func loadMore(_ id: String) async {
         do {
-            let page = try await store.fillups(of: id, limit: Self.pageSize, offset: fillups.count)
+            let page = try await store.fillups(of: id, page: loadedPages + 1, perPage: Self.pageSize)
             let known = Set(fillups.map(\.id))
-            let new = page.filter { !known.contains($0.id) }
+            let new = page.data.filter { !known.contains($0.id) }
             fillups += new
-            // Stop when the server returns nothing new (also protects against servers without `offset`).
-            canLoadMore = page.count == Self.pageSize && !new.isEmpty
+            loadedPages += 1
+            // Stop when the server returns nothing new, so a misbehaving server cannot cause an endless loop.
+            canLoadMore = page.pagination.hasMore && !new.isEmpty
         } catch {
             canLoadMore = false
         }
