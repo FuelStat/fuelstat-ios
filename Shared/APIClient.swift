@@ -204,8 +204,9 @@ struct APIClient {
 
     // MARK: - Vehicles
 
+    /// All vehicles of the account (owned first), fetched page by page.
     func vehicles(token: String) async throws -> [RemoteVehicle] {
-        try await send("vehicles", token: token)
+        try await allPages("vehicles", token: token)
     }
 
     func vehicle(id: String, token: String) async throws -> RemoteVehicle {
@@ -236,17 +237,14 @@ struct APIClient {
         try await send("vehicles/\(vehicleID)/stats", token: token)
     }
 
+    /// The latest fill-ups, newest first (at most `Page.maxPerPage`).
     func fillups(vehicleID: String, limit: Int, token: String) async throws -> [RemoteFillup] {
-        try await send("vehicles/\(vehicleID)/fillups", query: [URLQueryItem(name: "limit", value: String(limit))],
-                       token: token)
+        try await fillups(vehicleID: vehicleID, page: 1, perPage: limit, token: token).data
     }
 
-    /// Fill-ups, newest first. `offset` pages through older ones.
-    func fillups(vehicleID: String, limit: Int, offset: Int, token: String) async throws -> [RemoteFillup] {
-        try await send("vehicles/\(vehicleID)/fillups", query: [
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "offset", value: String(offset)),
-        ], token: token)
+    /// One page of fill-ups, newest first. `page` starts at 1.
+    func fillups(vehicleID: String, page: Int, perPage: Int, token: String) async throws -> Page<RemoteFillup> {
+        try await send("vehicles/\(vehicleID)/fillups", query: pageQuery(page: page, perPage: perPage), token: token)
     }
 
     func deleteFillup(id: String, token: String) async throws {
@@ -292,6 +290,30 @@ struct APIClient {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
         return try await perform(request, token: token)
+    }
+
+    // MARK: - Pagination
+
+    private func pageQuery(page: Int, perPage: Int) -> [URLQueryItem] {
+        [
+            URLQueryItem(name: "page", value: String(max(page, 1))),
+            URLQueryItem(name: "per_page", value: String(min(max(perPage, 1), Page<RemoteFillup>.maxPerPage))),
+        ]
+    }
+
+    /// Loads every page of a list endpoint (FuelStat/fuelstat#160).
+    private func allPages<Item: Decodable>(_ path: String, token: String) async throws -> [Item] {
+        var items: [Item] = []
+        var page = 1
+        while true {
+            let result: Page<Item> = try await send(
+                path, query: pageQuery(page: page, perPage: Page<Item>.maxPerPage), token: token
+            )
+            items += result.data
+            // Stop on an empty page as well, so a misbehaving server cannot cause an endless loop.
+            guard result.pagination.hasMore, !result.data.isEmpty else { return items }
+            page += 1
+        }
     }
 
     // MARK: - Transport

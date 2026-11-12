@@ -1,4 +1,5 @@
 import Foundation
+import FuelstatCore
 import Observation
 import UIKit
 
@@ -121,8 +122,8 @@ final class VehicleStore {
         try await auth.call { try await $0.fillups(vehicleID: id, limit: limit, token: $1) }
     }
 
-    func fillups(of id: String, limit: Int, offset: Int) async throws -> [RemoteFillup] {
-        try await auth.call { try await $0.fillups(vehicleID: id, limit: limit, offset: offset, token: $1) }
+    func fillups(of id: String, page: Int, perPage: Int) async throws -> Page<RemoteFillup> {
+        try await auth.call { try await $0.fillups(vehicleID: id, page: page, perPage: perPage, token: $1) }
     }
 
     /// Deletes a fill-up and refreshes the vehicle's key figures.
