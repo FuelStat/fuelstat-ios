@@ -124,6 +124,10 @@ cd Packages/FuelstatCore
 swift test
 ```
 
+Before a release, the app is tested by hand against the hosted service and a
+self-hosted server, following the checklist in
+[`docs/testing.md`](docs/testing.md); the result goes into the release PR.
+
 ## Roadmap
 
 Planning uses the [milestones](https://github.com/FuelStat/fuelstat-ios/milestones)

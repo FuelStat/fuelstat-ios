@@ -112,8 +112,13 @@ Steps:
    `Fuelstat/Views/ReleaseNotesView.swift`, German, written for users), check
    `docs/app-privacy.md` against what the app sends, run the tests and the CI
    build.
-3. **Merge** the PR.
-4. **Tag** the merged `main` and create the GitHub release (no workflow yet –
+3. **Test** the release build by hand: work through
+   [`docs/testing.md`](docs/testing.md) against the hosted service and a
+   self-hosted server, and record the result (API version from `/health`,
+   failed steps) in the release PR. The run needs a real iPhone, so an agent
+   prepares the result block and the maintainer does the run.
+4. **Merge** the PR.
+5. **Tag** the merged `main` and create the GitHub release (no workflow yet –
    create it on GitHub from the tag, notes = what changed for users, marked
    as pre-release while `0.x`):
 
@@ -122,7 +127,7 @@ Steps:
    git push origin vX.Y.Z
    ```
 
-5. **Distribute:** with the free developer account only by running from Xcode
+6. **Distribute:** with the free developer account only by running from Xcode
    on the device (valid 7 days). TestFlight and App Store need the paid
    program, see #12.
 
@@ -151,6 +156,8 @@ anything still missing:
 - **Design:** new screens and components follow the shared design document
   (FuelStat/fuelstat `docs/design.md`) and `docs/design.md` here.
 - **Tests:** new logic in `FuelstatCore` has tests; CI is green.
+- **Test checklist:** new or changed features have their steps in
+  `docs/testing.md`.
 
 ## Workflow
 
