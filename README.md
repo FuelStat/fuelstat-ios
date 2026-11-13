@@ -17,8 +17,8 @@ expense management platform.
 
 ## Requirements
 
-- iOS 17 or later (initial target)
-- Xcode
+- iOS 27 or later (#59)
+- Xcode 27 (Swift 6.4)
 - Swift
 - Fuelstat API account
 
@@ -158,7 +158,7 @@ stays in the project for now.
 
 ### Project structure
 
-- `Fuelstat.xcodeproj` – iOS app (SwiftUI, iOS 17+)
+- `Fuelstat.xcodeproj` – iOS app (SwiftUI, iOS 27+)
 - `Fuelstat/` – app sources (models, views, App Intents)
 - `Shared/` – API client, models and Keychain, used by app and widgets
 - `FuelstatWidgets/` – widget extension

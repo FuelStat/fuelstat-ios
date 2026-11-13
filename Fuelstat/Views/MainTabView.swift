@@ -65,11 +65,11 @@ enum EntryKind: String, Identifiable {
 private struct MainTabs: View {
     @Bindable var store: VehicleStore
 
-    private enum Tab: Hashable {
+    private enum AppTab: Hashable {
         case start, entries, add, statistics, profile
     }
 
-    @State private var tab: Tab = .start
+    @State private var tab: AppTab = .start
     @State private var selectedID: String? = VehicleSelection.storedID
     @State private var entry: EntryKind?
     /// Changes after an entry was saved, so the tabs reload their data.
@@ -92,34 +92,34 @@ private struct MainTabs: View {
                 tab = newValue
             }
         })) {
-            StartView(store: store, selectedID: selection, refresh: refresh,
-                      onShowEntries: { tab = .entries },
-                      onShowProfile: { tab = .profile },
-                      onManageVehicles: manageVehicles)
-                .tabItem { Label("Start", systemImage: "house") }
-                .tag(Tab.start)
+            Tab("Start", systemImage: "house", value: AppTab.start) {
+                StartView(store: store, selectedID: selection, refresh: refresh,
+                          onShowEntries: { tab = .entries },
+                          onShowProfile: { tab = .profile },
+                          onManageVehicles: manageVehicles)
+            }
 
-            EntriesView(store: store, selectedID: selection, refresh: refresh, onManageVehicles: manageVehicles)
-                .tabItem { Label("Einträge", systemImage: "list.bullet.rectangle") }
-                .tag(Tab.entries)
+            Tab("Einträge", systemImage: "list.bullet.rectangle", value: AppTab.entries) {
+                EntriesView(store: store, selectedID: selection, refresh: refresh, onManageVehicles: manageVehicles)
+            }
 
-            Color.clear
-                .tabItem {
-                    Label {
-                        Text("Erfassen").accessibilityLabel(Text("Eintrag erfassen"))
-                    } icon: {
-                        Image(uiImage: Self.addIcon(dark: colorScheme == .dark))
-                    }
+            Tab(value: AppTab.add) {
+                Color.clear
+            } label: {
+                Label {
+                    Text("Erfassen").accessibilityLabel(Text("Eintrag erfassen"))
+                } icon: {
+                    Image(uiImage: Self.addIcon(dark: colorScheme == .dark))
                 }
-                .tag(Tab.add)
+            }
 
-            StatisticsView(store: store, selectedID: selection, refresh: refresh, onManageVehicles: manageVehicles)
-                .tabItem { Label("Statistik", systemImage: "chart.xyaxis.line") }
-                .tag(Tab.statistics)
+            Tab("Statistik", systemImage: "chart.xyaxis.line", value: AppTab.statistics) {
+                StatisticsView(store: store, selectedID: selection, refresh: refresh, onManageVehicles: manageVehicles)
+            }
 
-            ProfileView(store: store, path: $profilePath)
-                .tabItem { Label("Profil", systemImage: "person.crop.circle") }
-                .tag(Tab.profile)
+            Tab("Profil", systemImage: "person.crop.circle", value: AppTab.profile) {
+                ProfileView(store: store, path: $profilePath)
+            }
         }
         .task {
             await store.load()
@@ -146,7 +146,7 @@ private struct MainTabs: View {
     }
 
     /// The "+" as tab icon: a filled brand circle, drawn as an original-colour image so the tab bar does not
-    /// tint it. Being the tab item itself, it sits exactly in the bar on every iOS version.
+    /// tint it. Being a tab itself, it sits exactly in the system tab bar (Liquid Glass included).
     private static func addIcon(dark: Bool) -> UIImage {
         let traits = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
         let fill = (UIColor(named: "Brand") ?? .systemTeal).resolvedColor(with: traits)

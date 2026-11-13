@@ -282,6 +282,9 @@ truth, so figures must match the web app exactly.
 
 - [ ] First use asks for location permission; denying it shows a usable
       message, not an empty screen
+- [ ] Location services off: the station search ends with "Dein Standort
+      konnte nicht bestimmt werden" or the permission message, it does not
+      spin forever
 - [ ] "Tankstellen in der Nähe" lists stations with prices and the
       Tankerkönig attribution **(hosted only)**
 - [ ] Without a Tankerkönig key: "Keine Tankstellen" (self-hosted)
