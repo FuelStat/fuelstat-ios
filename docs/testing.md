@@ -63,7 +63,10 @@ empty state there and the real search on the hosted service.
 
 - A test account with a confirmed e-mail address you can read, and an
   authenticator app for 2FA.
-- A second throwaway account for the account deletion test (section 10).
+- A second account with a confirmed e-mail address: first for sharing
+  (section 7c), then thrown away in the account deletion test (section 10).
+- For the plan messages: the test account on Free; for own categories and the
+  trip export one run on Plus (the operator sets the plan).
 - One combustion vehicle with at least three full fill-ups, so consumption
   and the chart have values; one electric or plug-in hybrid vehicle for
   charging and the filter chips.
@@ -157,8 +160,9 @@ truth, so figures must match the web app exactly.
 
 ### 6. Fill-ups and charging sessions
 
-- [ ] "+" opens the entry sheet with the last vehicle and last price
-      prefilled
+- [ ] "+" opens the entry sheet with type chips Tanken · Laden · Ausgabe ·
+      Fahrt · Kilometer, the last vehicle and the last price prefilled;
+      switching the chip keeps the vehicle
 - [ ] Full fill-up: enter two of amount, price per unit and total, the third
       is calculated ("berechnet"); the saved entry matches the web app
 - [ ] Partial fill-up ("Teilbetankung") and a forgotten previous entry
@@ -170,18 +174,68 @@ truth, so figures must match the web app exactly.
 - [ ] Station from "In der Nähe" is taken over into the entry
       **(hosted only)**
 
-### 7. Start and Einträge
+- [ ] Edit a fill-up younger than 14 days (Einträge → entry → Bearbeiten):
+      changes are saved and match the web app
+- [ ] Edit a fill-up older than 14 days: the API's message about the 14 days
+      is shown, nothing is changed
+- [ ] Fill-up without odometer: shows "ohne km" in the list; "Kilometerstand
+      nachtragen" on its detail page works, also when it is older than 14
+      days
+
+### 7. Start, Einträge and entry details
 
 - [ ] Start shows the vehicle hero, key figures, due dates, the cheapest
       nearby station and the latest entries for the selected vehicle
-- [ ] Einträge: grouped by month, newest first; search by station finds the
-      entry; more entries load while scrolling (needs more than one page)
-- [ ] Filter chips appear for the plug-in hybrid and filter fuel/charging
-- [ ] Swipe to delete removes the entry; key figures update
-- [ ] Empty state: "Noch keine Tank- oder Ladevorgänge."
+- [ ] Einträge: fill-ups, charging sessions, expenses, odometer notes and
+      trips in one list, grouped by month, newest first; the month header
+      shows the same costs as the web app's month total
+- [ ] Filter chips show only kinds the vehicle has entries of and filter the
+      list; search finds an entry by station, vendor, category or note
+- [ ] More entries load while scrolling (needs more than 50 entries)
+- [ ] Tapping an entry opens its details (consumption of a full fill-up,
+      "Erfasst von" on a shared vehicle); Bearbeiten and Löschen work there
+- [ ] Swipe to edit and to delete; key figures update after a delete
+- [ ] Empty state: "Noch keine Einträge"
 - [ ] Pull to refresh on Start picks up an entry made in the web app
 
-### 8. Statistik and Termine
+### 7a. Expenses and categories
+
+- [ ] "+" → Ausgabe: categories from the server with their symbols; Plus
+      categories are marked "mit Plus" in the Free plan, choosing one shows
+      the API's plan message when saving
+- [ ] Save an expense with amount, odometer, vendor and note; it appears in
+      the list and in the web app; change and delete it
+- [ ] "+" → Kilometer: an odometer note without costs is saved and does not
+      count in the month total
+- [ ] Profil → Kategorien: with Plus create, rename and delete an own
+      category; deleting one in use asks where its expenses go. In the Free
+      plan the API's message is shown
+
+### 7b. Trip log
+
+- [ ] "+" → Fahrt: the start odometer is prefilled with the current one;
+      with start and end the distance is shown; without start the distance
+      is entered instead
+- [ ] Purpose "Arbeitsweg" in the Free plan: the API's plan message
+- [ ] Einträge → Fahrtenbuch: year and purpose filters, totals, business
+      share and estimated costs equal the web app; chart "Kilometer je Monat"
+- [ ] Change and delete a trip (swipe)
+- [ ] Export: with Plus the share sheet offers a CSV that opens in Numbers;
+      in the Free plan the API's message
+
+### 7c. Sharing (two accounts)
+
+- [ ] Vehicle → Daten → Fahrzeug teilen: invite the second account as
+      Mitfahrer; the invitation is listed and can be withdrawn
+- [ ] Second account (confirmed e-mail): Profil → Einladungen shows it;
+      accepting adds the vehicle, marked "Geteilt von …"
+- [ ] As Mitfahrer: record an entry, change it; an entry of the owner cannot
+      be changed (API message); the photo menu and Bearbeiten are hidden
+- [ ] Owner changes the role to "Nur ansehen": the "+" no longer offers the
+      vehicle, the entries have no edit actions
+- [ ] Member leaves the vehicle ("Fahrzeug verlassen"); owner removes a member
+
+### 8. Statistik, Termine and reminders
 
 - [ ] Key figures (Ø Verbrauch, Kosten pro km, Gesamtkosten, Erfasste
       Strecke) equal the web app's values for the same vehicle
@@ -189,6 +243,17 @@ truth, so figures must match the web app exactly.
       "Keine Werte in diesem Zeitraum." when there are none
 - [ ] Due dates (`/reminders`) on Start and on the vehicle page match the web
       app; "Keine Termine" when there are none
+
+- [ ] Tapping a due date opens an expense with the matching category; after
+      saving, the next due date moves on
+- [ ] Profil → Termine und Erinnerungen lists the due dates of all vehicles,
+      most urgent first
+- [ ] Switching "Auf diesem iPhone erinnern" on asks for permission only now;
+      the footer shows the number of planned reminders; with a due date
+      inside the lead time the notification arrives next morning at 9:00
+      (or set the lead time so it falls on tomorrow)
+- [ ] Tapping the notification opens the vehicle
+- [ ] Switching off or signing out removes the planned reminders
 
 ### 9. Stations, location and server pages
 

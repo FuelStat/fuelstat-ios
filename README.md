@@ -31,13 +31,18 @@ https://github.com/FuelStat/fuelstat
 
 ## Development
 
-### Current state (0.1.0 – MVP)
+### Current state (0.2.0 – Foundation)
 
-The app is an **MVP**, not yet an alpha: it runs only from Xcode on your own
-device (free developer account, valid 7 days), there is no TestFlight or App
-Store build. Version 0.1.0 marks this state; the first regular release is
-[0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)
-(see Roadmap). Developed against Fuelstat server 0.11.0.
+Version 0.2.0 is the first regular release
+([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)):
+sign-in and account are complete, and much of
+[0.3.0 – Capture](https://github.com/FuelStat/fuelstat-ios/milestone/2) and
+[0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) is already in.
+It still runs only from Xcode on your own device (free developer account,
+valid 7 days); there is no TestFlight or App Store build. Developed against
+Fuelstat server 0.13.0 (device sessions and minimum app version,
+FuelStat/fuelstat#117, #118); with an older server the app falls back to the
+7-day sign-in and has no device list.
 
 The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
 self-hosted servers can be entered on the sign-in screen):

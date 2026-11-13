@@ -9,6 +9,18 @@ struct ReleaseNote: Identifiable {
     var id: String { version }
 
     static let all: [ReleaseNote] = [
+        ReleaseNote(version: "0.2.0", date: "November 2026", items: [
+            "Alle Einträge in einer Liste: Tanken, Laden, Ausgaben, Kilometerstände und Fahrten, mit Monatssummen, Filtern und Suche",
+            "Jeder Eintrag lässt sich öffnen, bearbeiten und löschen; fehlende Kilometerstände trägst du jederzeit nach",
+            "Ausgaben erfassen wie Versicherung, Werkstatt oder TÜV, auch mit eigenen Kategorien",
+            "Fahrtenbuch mit Zweck, Auswertung je Monat und Export als CSV",
+            "Fahrzeuge mit anderen teilen: einladen, Rollen vergeben, Einladungen annehmen",
+            "Alle Termine auf einen Blick und Erinnerungen auf dem iPhone, ganz ohne Mitteilungsdienst",
+            "Länger angemeldet bleiben: Solange du die App mindestens alle 180 Tage öffnest, musst du dich nicht neu anmelden",
+            "Angemeldete Geräte ansehen und einzeln abmelden",
+            "Widget „Fahrzeug im Auto“ für CarPlay: Durchschnittsverbrauch auf dem Display des Autos (ab iOS 26)",
+            "Hinweis, wenn der Server eine neuere App-Version braucht",
+        ]),
         ReleaseNote(version: "0.1.0", date: "November 2026", items: [
             "Erste Version für das iPhone: Start, Einträge, Statistik und Profil",
             "Anmelden und Registrieren, auch mit Zwei-Faktor-Code und eigenem Server",
