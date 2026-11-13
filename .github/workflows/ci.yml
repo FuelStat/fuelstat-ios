@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build-and-test:
     name: Build and test
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 30
 
     steps:
@@ -27,9 +27,9 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Select Xcode 27
-        # The app targets iOS 27 (#59); pick the newest Xcode 27 of the runner image.
+        # The app targets iOS 27 (#59): xcode-27 image (macOS 27), newest stable Xcode 27 on it.
         run: |
-          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1)
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -vi beta | sort -V | tail -n 1)
           if [ -z "$xcode" ]; then
             echo "::error::No Xcode 27 on this runner image"; ls -d /Applications/Xcode*.app; exit 1
           fi
