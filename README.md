@@ -40,7 +40,7 @@ sign-in and account are complete, and much of
 [0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) is already in.
 It still runs only from Xcode on your own device (free developer account,
 valid 7 days); there is no TestFlight or App Store build. Developed against
-Fuelstat server 0.13.0 (device sessions and minimum app version,
+Fuelstat server 0.12.1 (device sessions and minimum app version,
 FuelStat/fuelstat#117, #118); with an older server the app falls back to the
 7-day sign-in and has no device list.
 
