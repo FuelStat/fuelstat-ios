@@ -77,6 +77,9 @@ struct VehiclePhoto: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                        // The filled image is larger than its frame. `clipped()` only cuts what is drawn, not
+                        // where taps land: a tall photo would catch taps above it (e.g. on the vehicle switcher).
+                        .allowsHitTesting(false)
                 } else {
                     Image(systemName: "car.side")
                         .font(.title2)
@@ -84,6 +87,7 @@ struct VehiclePhoto: View {
                 }
             }
             .clipped()
+            .contentShape(Rectangle())
         .accessibilityHidden(true)
         .task(id: url) {
             guard let url else {
