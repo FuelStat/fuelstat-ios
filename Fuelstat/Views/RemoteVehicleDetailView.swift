@@ -73,10 +73,19 @@ struct RemoteVehicleDetailView: View {
                                              range: $chartRange)
                     case .data:
                         MasterDataCards(vehicle: vehicle, odometer: store.currentOdometer(of: vehicle))
-                        Button("Fahrzeug löschen", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+                        NavigationLink(value: Route.sharing(vehicle.id)) {
+                            Label(vehicle.isShared ? "Zugriff ansehen" : "Fahrzeug teilen", systemImage: "person.2")
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
+                        // Only the owner may delete the vehicle; the API enforces it.
+                        if !vehicle.isShared {
+                            Button("Fahrzeug löschen", systemImage: "trash", role: .destructive) {
+                                confirmingDelete = true
+                            }
                             .disabled(isWorking)
                             .frame(maxWidth: .infinity)
                             .padding(.top, Theme.Spacing.s)
+                        }
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.screen)
@@ -95,9 +104,15 @@ struct RemoteVehicleDetailView: View {
         .ignoresSafeArea(edges: .top)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Bearbeiten", systemImage: "pencil") { showingEdit = true }
-                    .disabled(isWorking)
+            ToolbarItemGroup(placement: .primaryAction) {
+                NavigationLink(value: Route.tripLog(vehicle.id)) {
+                    Label("Fahrtenbuch", systemImage: "book.closed")
+                }
+                // Master data and photo belong to the owner; the API enforces it.
+                if !vehicle.isShared {
+                    Button("Bearbeiten", systemImage: "pencil") { showingEdit = true }
+                        .disabled(isWorking)
+                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -107,7 +122,7 @@ struct RemoteVehicleDetailView: View {
             RemoteVehicleFormView(store: store, editing: vehicle)
         }
         .sheet(isPresented: $showingFillup, onDismiss: { Task { await load() } }) {
-            FillupEntryView(store: store, vehicleID: vehicle.id)
+            QuickEntryView(store: store, vehicleID: vehicle.id, kind: vehicle.fuelType == .electric ? .charge : .fuel)
         }
         .confirmationDialog("„\(vehicle.name)“ löschen?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Fahrzeug und alle Einträge löschen", role: .destructive) { delete() }
@@ -133,6 +148,7 @@ struct RemoteVehicleDetailView: View {
                     LinearGradient(colors: [.black.opacity(0.35), .clear], startPoint: .top, endPoint: .center)
                 }
 
+            if !vehicle.isShared {
             Menu {
                 Button("Foto auswählen", systemImage: "photo.on.rectangle") { showingPhotoLibrary = true }
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -156,6 +172,7 @@ struct RemoteVehicleDetailView: View {
             .padding(.trailing, Theme.Spacing.m)
             .padding(.bottom, Theme.Radius.card + Theme.Spacing.s)
             .accessibilityLabel(vehicle.imageURL == nil ? "Foto hinzufügen" : "Foto ändern")
+            }
         }
     }
 
@@ -181,17 +198,23 @@ struct RemoteVehicleDetailView: View {
                 }
             }
             .font(.subheadline.weight(.medium))
+            if vehicle.isShared { SharedVehicleBadge(vehicle: vehicle) }
         }
     }
 
     @ViewBuilder
     private func overview(_ vehicle: RemoteVehicle) -> some View {
         KeyFigureTiles(vehicle: vehicle, stats: store.stats[vehicle.id], odometer: store.currentOdometer(of: vehicle))
-        PrimaryButton(title: vehicle.fuelType == .electric ? "Laden erfassen" : "Tanken erfassen",
-                      systemImage: vehicle.fuelType == .electric ? "bolt.fill" : "fuelpump.fill") {
-            showingFillup = true
+        if vehicle.role.canRecord {
+            PrimaryButton(title: vehicle.fuelType == .electric ? "Laden erfassen" : "Tanken erfassen",
+                          systemImage: vehicle.fuelType == .electric ? "bolt.fill" : "fuelpump.fill") {
+                showingFillup = true
+            }
         }
-        RemindersCard(reminders: reminders)
+        NavigationLink(value: Route.reminders(vehicle.id)) {
+            RemindersCard(reminders: reminders)
+        }
+        .buttonStyle(.plain)
         RecentEntriesCard(fillups: Array(fillups.prefix(Self.recentCount)), fuelType: vehicle.fuelType) {
             segment = .entries
         }

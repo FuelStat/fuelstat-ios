@@ -8,6 +8,11 @@ import SwiftUI
 /// diesel, nearby stations with current prices come from Tankerkönig via the Fuelstat API.
 struct FillupEntryView: View {
     let store: VehicleStore
+    /// The type chips of the quick-entry sheet; nil when the form was opened for fill-ups only.
+    var kindSelection: Binding<EntryKind>?
+    /// The fill-up being changed, nil for a new one. The API allows changes for 14 days.
+    var editing: TimelineItem?
+    var onVehicleChange: ((String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -40,10 +45,31 @@ struct FillupEntryView: View {
         case station
     }
 
-    init(store: VehicleStore, vehicleID: String? = nil, kind: EntryKind? = nil) {
+    init(store: VehicleStore, vehicleID: String? = nil, kind: EntryKind? = nil,
+         kindSelection: Binding<EntryKind>? = nil, editing: TimelineItem? = nil,
+         onVehicleChange: ((String) -> Void)? = nil) {
         self.store = store
+        self.kindSelection = kindSelection
+        self.editing = editing
+        self.onVehicleChange = onVehicleChange
         _vehicleID = State(initialValue: vehicleID ?? store.lastUsedVehicleID ?? "")
-        _unit = State(initialValue: kind?.rawValue ?? "l")
+        _unit = State(initialValue: editing?.unit ?? (kind == .charge ? "kwh" : "l"))
+        if let editing {
+            var values = FillupAmounts()
+            values.set(.amount, to: editing.amount)
+            values.set(.total, to: editing.cost)
+            _values = State(initialValue: values)
+            _filledAt = State(initialValue: editing.date ?? .now)
+            _odometerKm = State(initialValue: editing.odometerKm.map { Int($0) })
+            _isFull = State(initialValue: editing.isFull ?? true)
+            _skipPrevious = State(initialValue: editing.skipPrevious ?? false)
+            _station = State(initialValue: editing.place ?? "")
+        }
+    }
+
+    private var title: LocalizedStringKey {
+        if editing != nil { return "Eintrag bearbeiten" }
+        return isCharging ? "Laden erfassen" : "Tanken erfassen"
     }
 
     private var vehicle: RemoteVehicle? { store.vehicle(vehicleID) }
@@ -113,7 +139,7 @@ struct FillupEntryView: View {
                     .padding(.vertical, Theme.Spacing.xs)
                     .background(.bar)
             }
-            .navigationTitle(isCharging ? "Laden erfassen" : "Tanken erfassen")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -124,8 +150,16 @@ struct FillupEntryView: View {
                     Button("Fertig") { focusedField = nil }
                 }
             }
-            .interactiveDismissDisabled(isSaving || values.amount != nil)
+            .interactiveDismissDisabled(isSaving || (editing == nil && values.amount != nil))
             .task(id: "\(vehicleID)-\(unit)") { await vehicleChanged() }
+            .onChange(of: vehicleID) { onVehicleChange?(vehicleID) }
+            .onChange(of: kindSelection?.wrappedValue) { kindChanged() }
+            .onChange(of: unit) {
+                // Keep the type chips in step when the vehicle forces another unit (e.g. an electric car).
+                if let kindSelection, [.fuel, .charge].contains(kindSelection.wrappedValue) {
+                    kindSelection.wrappedValue = unit == "kwh" ? .charge : .fuel
+                }
+            }
             .sheet(isPresented: $showingStations) {
                 if let type = stationSearchType {
                     StationPickerView(store: store, type: type) { picked, price in
@@ -153,8 +187,23 @@ struct FillupEntryView: View {
 
     @ViewBuilder
     private var typeAndVehicle: some View {
+        if editing != nil {
+            if let vehicle {
+                Label(vehicle.name, systemImage: "car.side")
+                    .font(.headline)
+                    .foregroundStyle(Theme.brandDeep)
+            }
+        } else {
+            newEntryHeader
+        }
+    }
+
+    @ViewBuilder
+    private var newEntryHeader: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            if let vehicle, vehicle.fuelType.fillupUnits.count > 1 {
+            if let kindSelection {
+                EntryTypeChips(fuelType: vehicle?.fuelType, selection: kindSelection)
+            } else if let vehicle, vehicle.fuelType.fillupUnits.count > 1 {
                 HStack(spacing: Theme.Spacing.xs) {
                     typeChip("Tanken", systemImage: "fuelpump.fill", unit: vehicle.fuelType.fillupUnits[0])
                     typeChip("Laden", systemImage: "bolt.fill", unit: "kwh")
@@ -438,6 +487,11 @@ struct FillupEntryView: View {
             unit = units[0]
             return // runs again for the new unit
         }
+        // Changing an entry keeps its values; only the recently used stations are offered.
+        if editing != nil {
+            await loadRecentStations(vehicle.id)
+            return
+        }
         // A price for litres does not fit kWh: start over unless amount or total were already typed.
         if values.entered.allSatisfy({ $0 == .pricePerUnit }) {
             values = FillupAmounts()
@@ -486,9 +540,47 @@ struct FillupEntryView: View {
             .map { $0 }
     }
 
+    /// The type chips switched between fuelling and charging: use the matching unit of the vehicle.
+    private func kindChanged() {
+        guard let kind = kindSelection?.wrappedValue, let units = vehicle?.fuelType.fillupUnits else { return }
+        switch kind {
+        case .charge where units.contains("kwh"): unit = "kwh"
+        case .fuel: unit = units.first { $0 != "kwh" } ?? unit
+        default: break
+        }
+    }
+
+    private func saveChanges(to editing: TimelineItem, amount: Double, total: Double) {
+        let trimmed = station.trimmingCharacters(in: .whitespaces)
+        let patch = FillupPatch(unit: unit, amount: amount, totalCostEur: total, odometerKm: odometerKm,
+                                station: trimmed.isEmpty ? nil : trimmed, filledAt: filledAt, isFull: isFull,
+                                skipPrevious: skipPrevious)
+        errorMessage = nil
+        isSaving = true
+        Task {
+            defer { isSaving = false }
+            do {
+                let messages = try await store.updateFillup(editing.rawID, patch, of: vehicleID)
+                if messages.isEmpty {
+                    Haptics.success()
+                    dismiss()
+                } else {
+                    Haptics.warning()
+                    warnings = messages
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     private func save() {
         focusedField = nil
         guard canSave, let amount = values.amount, let total = values.total else { return }
+        if let editing {
+            saveChanges(to: editing, amount: amount, total: total)
+            return
+        }
         let trimmed = station.trimmingCharacters(in: .whitespaces)
         let input = FillupInput(
             vehicleId: vehicleID,

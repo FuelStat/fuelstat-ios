@@ -58,6 +58,21 @@ struct ProfileView: View {
                             Label("Fahrzeuge", systemImage: "car.2")
                         }
                     }
+                    if let open = auth.user?.pendingInvitations, open > 0 {
+                        NavigationLink(value: Route.invitations) {
+                            LabeledContent {
+                                Text("\(open)")
+                            } label: {
+                                Label("Einladungen", systemImage: "envelope.badge")
+                            }
+                        }
+                    }
+                    NavigationLink(value: Route.allReminders) {
+                        Label("Termine und Erinnerungen", systemImage: "calendar.badge.clock")
+                    }
+                    NavigationLink(value: Route.categories) {
+                        Label("Kategorien", systemImage: "tag")
+                    }
                 }
                 .listRowBackground(Theme.card)
 
@@ -114,8 +129,14 @@ struct ProfileView: View {
             }
             .themedBackground()
             .navigationTitle("Profil")
-            .task { await loadServerVersion() }
-            .refreshable { await loadServerVersion() }
+            .task {
+                await auth.refreshUser()
+                await loadServerVersion()
+            }
+            .refreshable {
+                await auth.refreshUser()
+                await loadServerVersion()
+            }
             .vehicleRoutes(store: store)
             .webPageSheet($webPage, apiBaseURL: auth.api.baseURL)
             .confirmationDialog("Abmelden?", isPresented: $confirmingLogout, titleVisibility: .visible) {

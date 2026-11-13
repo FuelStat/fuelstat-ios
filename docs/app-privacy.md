@@ -18,9 +18,9 @@ All types below are **linked to the user** (they belong to the account),
 
 | App Store category | Data type | What the app sends | Where |
 |---|---|---|---|
-| Contact Info | Email Address | Account e-mail; also sent with feedback | Sign-in, registration, `POST /feedback` |
+| Contact Info | Email Address | Account e-mail; also sent with feedback. E-mail addresses of people invited to a shared vehicle | Sign-in, registration, `POST /feedback`, `POST /vehicles/:id/invitations` |
 | User Content | Photos or Videos | Vehicle photos (the server strips metadata and stores WebP) | `POST /vehicles/:id/media/upload` |
-| User Content | Other User Content | Vehicles, fill-ups, charging sessions, odometer readings, notes | Vehicle and entry endpoints |
+| User Content | Other User Content | Vehicles, fill-ups, charging sessions, expenses with vendor and note, own categories, odometer readings, trips (start and end place as typed text, purpose, note) | Vehicle, entry, category and trip endpoints |
 | User Content | Customer Support | Feedback messages | `POST /feedback` |
 | Identifiers | User ID | Account ID used in API paths | All signed-in requests |
 | Location | Precise Location | Current position for the nearby-station search, only while the app is in use; the server forwards it to Tankerkönig and does not store it | `GET /stations?lat=&lng=` |
@@ -32,6 +32,10 @@ Notes:
   the device. It does (to the server and Tankerkönig), so declare "Precise
   Location", even though it is not stored. Not linked to the user if the
   server does not log it — check the server's access logs before submitting.
+- **Trips:** start and end place are text the user types, not a recorded
+  position; the app does not track trips.
+- **Local reminders:** due-date notifications are planned on the device from
+  the API's dates; nothing is sent to Apple's push service or anyone else.
 - **Financial info:** fuel prices and costs are user content, not payment data.
   There are no in-app purchases yet (see #12 for plans).
 - **Account deletion:** in the app under Profil → Konto löschen
