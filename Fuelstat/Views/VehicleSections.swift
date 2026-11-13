@@ -11,6 +11,8 @@ struct KeyFigureTiles: View {
     let vehicle: RemoteVehicle
     let stats: VehicleStats?
     let odometer: Double?
+    /// Names of the energies; needed to list them for vehicles with several (FuelStat/fuelstat#140).
+    var catalog: FuelCatalog?
 
     private var unit: String { vehicle.fuelType.tankCapacityUnit }
 
@@ -28,6 +30,9 @@ struct KeyFigureTiles: View {
                          value: stats?.averagePricePerUnit.map { $0.formatted(.number.precision(.fractionLength(3))) },
                          unit: "€/\(unit)")
             }
+            if let energies = stats?.energies, energies.count > 1 {
+                EnergyFiguresCard(energies: energies, catalog: catalog)
+            }
             if stats?.averageConsumption == nil {
                 Text("Der Verbrauch erscheint nach den ersten vollen Tankfüllungen.")
                     .font(.footnote)
@@ -37,6 +42,66 @@ struct KeyFigureTiles: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+}
+
+/// Consumption and price per energy for vehicles with several, e.g. petrol and LPG or petrol and electricity.
+/// Energies fuelled only on the side get no consumption figure, as the API marks them (`minor`).
+struct EnergyFiguresCard: View {
+    let energies: [String: VehicleStats.EnergyFigures]
+    let catalog: FuelCatalog?
+
+    /// The order of the catalog (petrol, diesel, LPG, CNG, electricity …), unknown ones last.
+    private var keys: [String] {
+        let order = catalog?.energies.map(\.key) ?? []
+        return energies.keys.sorted { (order.firstIndex(of: $0) ?? .max, $0) < (order.firstIndex(of: $1) ?? .max, $1) }
+    }
+
+    var body: some View {
+        CardContainer(padding: 0) {
+            VStack(spacing: 0) {
+                ForEach(Array(keys.enumerated()), id: \.element) { index, key in
+                    if index > 0 { Divider().padding(.leading, Theme.Spacing.cardPadding) }
+                    if let figures = energies[key] { row(key, figures) }
+                }
+            }
+        }
+    }
+
+    private func row(_ key: String, _ figures: VehicleStats.EnergyFigures) -> some View {
+        let unit = Self.unitLabel(figures.unit)
+        return HStack(alignment: .firstTextBaseline) {
+            Text(verbatim: catalog?.energyName(key) ?? key)
+                .font(.body.weight(.medium))
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                if figures.minor {
+                    Text("nur nebenbei getankt")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(verbatim: figures.averageConsumption.map { "Ø \(Fmt.number($0, digits: 1)) \(unit)/100 km" } ?? "–")
+                        .font(.body.weight(.semibold))
+                }
+                if let price = figures.averagePrice {
+                    Text(verbatim: "Ø \(price.formatted(.number.precision(.fractionLength(3)))) €/\(unit)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .monospacedDigit()
+        }
+        .padding(.horizontal, Theme.Spacing.cardPadding)
+        .padding(.vertical, Theme.Spacing.s)
+        .accessibilityElement(children: .combine)
+    }
+
+    static func unitLabel(_ unit: String) -> String {
+        switch unit {
+        case "kwh": "kWh"
+        case "kg": "kg"
+        default: "L"
         }
     }
 }
@@ -90,18 +155,42 @@ struct ReminderRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                if let last = lastText {
+                    Text(last)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
             Spacer(minLength: Theme.Spacing.xs)
-            StatusBadge(status: reminder.status.badge)
+            // Info rows (e.g. tyres) have no due date and therefore no status (FuelStat/fuelstat#172).
+            if !reminder.isInfo {
+                StatusBadge(status: reminder.status.badge)
+            }
         }
         .accessibilityElement(children: .combine)
     }
 
+    /// Due date and/or distance; without any (status `unbekannt`, e.g. TÜV without an entry) a request to record
+    /// the last one, so the API can work out the next.
     private var dueText: String? {
+        if reminder.isInfo {
+            return reminder.lastDate == nil ? String(localized: "\(reminder.title) erfassen") : nil
+        }
         var parts: [String] = []
         if let date = reminder.dueDate { parts.append(APIDate.formatDay(date)) }
         if let km = reminder.dueKm { parts.append(Fmt.kilometres(km)) }
+        if parts.isEmpty, reminder.status == .unknown { return String(localized: "Letzten Termin erfassen") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "zuletzt am 3. Mai 2026 bei 45.000 km · Winterreifen"
+    private var lastText: String? {
+        guard let date = reminder.lastDate else { return nil }
+        var text = String(localized: "zuletzt am \(APIDate.formatDay(date))")
+        if let km = reminder.lastOdometerKm { text += " " + String(localized: "bei \(Fmt.kilometres(km))") }
+        if let note = reminder.lastDescription { text += " · " + note }
+        return text
     }
 }
 
@@ -242,20 +331,30 @@ struct ConsumptionChartCard: View {
     let stats: VehicleStats?
     let fuelType: RemoteFuelType
     @Binding var range: Range
+    var catalog: FuelCatalog?
 
-    private var units: [String] {
-        let present = Set((stats?.segments ?? []).map(\.unit))
-        return fuelType.fillupUnits.filter(present.contains)
+    /// One chart per energy (petrol and LPG separately, FuelStat/fuelstat#140), or per unit on older servers.
+    /// Energies fuelled only on the side are left out, as the API marks them.
+    private var series: [String] {
+        var seen: [String] = []
+        for segment in (stats?.segments ?? []).sorted(by: { $0.date < $1.date }) {
+            let key = Self.seriesKey(segment)
+            if !seen.contains(key), stats?.energies[key]?.minor != true { seen.append(key) }
+        }
+        let order = catalog?.energies.map(\.key) ?? fuelType.fillupUnits
+        return seen.sorted { (order.firstIndex(of: $0) ?? .max) < (order.firstIndex(of: $1) ?? .max) }
     }
 
-    private func segments(unit: String) -> [VehicleStats.Segment] {
+    private static func seriesKey(_ segment: VehicleStats.Segment) -> String { segment.energy ?? segment.unit }
+
+    private func segments(series key: String) -> [VehicleStats.Segment] {
         let start: Date? = switch range {
         case .sixMonths: Calendar.current.date(byAdding: .month, value: -6, to: .now)
         case .year: Calendar.current.date(byAdding: .year, value: -1, to: .now)
         case .all: nil
         }
         return (stats?.segments ?? [])
-            .filter { segment in segment.unit == unit && (start.map { segment.date >= $0 } ?? true) }
+            .filter { segment in Self.seriesKey(segment) == key && (start.map { segment.date >= $0 } ?? true) }
             .sorted { $0.date < $1.date }
     }
 
@@ -267,28 +366,36 @@ struct ConsumptionChartCard: View {
                 .init(value: Range.all, title: "Gesamt"),
             ], selection: $range)
 
-            if units.isEmpty {
+            if series.isEmpty {
                 CardContainer {
                     Text("Für ein Diagramm braucht es mindestens zwei volle Tankfüllungen mit Kilometerstand.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
-            ForEach(units, id: \.self) { unit in
-                chart(unit: unit)
+            ForEach(series, id: \.self) { key in
+                chart(series: key)
             }
         }
     }
 
-    private func chart(unit: String) -> some View {
-        let data = segments(unit: unit)
-        let unitLabel = unit == "kwh" ? "kWh" : (unit == "kg" ? "kg" : "L")
-        let color = unit == "kwh" ? Theme.Energy.electricity : fuelType.energyColor
+    private func chart(series key: String) -> some View {
+        let data = segments(series: key)
+        let unit = data.first?.unit ?? stats?.energies[key]?.unit ?? key
+        let unitLabel = EnergyFiguresCard.unitLabel(unit)
+        let color = Self.color(series: key, unit: unit, fuelType: fuelType)
+        let name = series.count > 1 ? catalog?.energyName(key) : nil
         return CardContainer {
             VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-                Text("Verbrauch je Tankfüllung")
-                    .font(.headline)
-                    .foregroundStyle(Theme.brandDeep)
+                Group {
+                    if let name {
+                        Text("Verbrauch je Tankfüllung – \(name)")
+                    } else {
+                        Text("Verbrauch je Tankfüllung")
+                    }
+                }
+                .font(.headline)
+                .foregroundStyle(Theme.brandDeep)
                 Text("\(unitLabel)/100 km")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -310,6 +417,18 @@ struct ConsumptionChartCard: View {
                     .accessibilityValue(Text(summary(data, unit: unitLabel)))
                 }
             }
+        }
+    }
+
+    /// Colour of an energy; on older servers the series is a unit.
+    private static func color(series key: String, unit: String, fuelType: RemoteFuelType) -> Color {
+        switch key {
+        case "electricity", "kwh": Theme.Energy.electricity
+        case "petrol": Theme.Energy.petrol
+        case "diesel": Theme.Energy.diesel
+        case "lpg", "cng": Theme.Energy.gas
+        case "hydrogen": Theme.Energy.hydrogen
+        default: unit == "kwh" ? Theme.Energy.electricity : fuelType.energyColor
         }
     }
 

@@ -74,7 +74,10 @@ actor TokenStore {
             try await Task.sleep(for: .seconds(1))
             if let stored = KeychainStore.loadToken(), stored != previous { return stored }
             throw APIError.network(String(localized: "Die Anmeldung wird gerade erneuert. Bitte versuche es gleich noch einmal."))
-        } catch let APIError.server(code, _) where sessionEnded.contains(code) {
+        } catch let APIError.server(code, status) where sessionEnded.contains(code) || status == 404 {
+            // 404: the server no longer knows device sessions (e.g. rolled back to a version before
+            // FuelStat/fuelstat#117). The token cannot be renewed, so a new sign-in is the only way on; it then
+            // falls back to the older 7-day token.
             // Only end the sign-in if nobody stored a new pair in the meantime.
             if KeychainStore.loadRefreshToken() == refreshToken { KeychainStore.deleteToken() }
             throw APIError.unauthorized

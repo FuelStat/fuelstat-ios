@@ -33,6 +33,8 @@ struct VehicleHero: View {
             .padding(Theme.Spacing.m)
         }
         .clipShape(.card)
+        // Taps only inside the card, never on what the photo would cover beyond it.
+        .contentShape(.card)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
     }

@@ -28,6 +28,8 @@ struct TimelineItem: Decodable, Identifiable, Hashable {
     let amount: Double?
     /// `l`, `kwh` or `kg` (fill-ups only).
     let unit: String?
+    /// Fuel type of a fill-up (FuelStat/fuelstat#140).
+    let fuel: String?
     let odometerKm: Double?
     let odometerEstimated: Bool
     let isFull: Bool?
@@ -58,7 +60,7 @@ struct TimelineItem: Decodable, Identifiable, Hashable {
     var isMissingOdometer: Bool { source == .fillup && (odometerKm == nil || odometerEstimated) }
 
     enum CodingKeys: String, CodingKey {
-        case type, kind, id, at, category, cost, countsAsCost, amount, unit, place, description, purpose, consumption
+        case type, kind, id, at, category, cost, countsAsCost, amount, unit, place, description, purpose, consumption, fuel
         case odometerKm = "odometer_km"
         case odometerEstimated = "odometer_estimated"
         case isFull = "is_full"
@@ -85,6 +87,7 @@ struct TimelineItem: Decodable, Identifiable, Hashable {
         countsAsCost = (try? c.decodeIfPresent(Bool.self, forKey: .countsAsCost)) ?? true
         amount = c.number(.amount)
         unit = c.text(.unit)
+        fuel = c.text(.fuel)
         odometerKm = c.number(.odometerKm)
         odometerEstimated = (try? c.decodeIfPresent(Bool.self, forKey: .odometerEstimated)) ?? false
         isFull = try? c.decodeIfPresent(Bool.self, forKey: .isFull)
@@ -175,9 +178,11 @@ struct FillupPatch: Encodable {
     var filledAt: Date
     var isFull: Bool
     var skipPrevious: Bool
+    /// Fuel type; nil leaves it unchanged.
+    var fuel: String? = nil
 
     enum CodingKeys: String, CodingKey {
-        case unit, amount, totalCostEur, odometerKm, station, filledAt, isFull, skipPrevious
+        case unit, amount, totalCostEur, odometerKm, station, filledAt, isFull, skipPrevious, fuel
     }
 
     func encode(to encoder: Encoder) throws {
@@ -190,6 +195,7 @@ struct FillupPatch: Encodable {
         try c.encode(ISO8601DateFormatter().string(from: filledAt), forKey: .filledAt)
         try c.encode(isFull, forKey: .isFull)
         try c.encode(skipPrevious, forKey: .skipPrevious)
+        try c.encodeIfPresent(fuel, forKey: .fuel)
     }
 }
 

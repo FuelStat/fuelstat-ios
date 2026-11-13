@@ -17,7 +17,7 @@ struct NextReminderIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let reminders = try await IntentAPI.call { try await $0.reminders(vehicleID: vehicle.id, token: $1) }
-        guard let next = RemoteReminder.byUrgency(reminders).first else {
+        guard let next = RemoteReminder.next(reminders) else {
             let text = String(localized: "Für \(vehicle.name) sind keine Termine eingetragen.")
             return .result(value: text, dialog: IntentDialog(stringLiteral: text))
         }

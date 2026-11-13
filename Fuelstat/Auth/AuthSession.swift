@@ -115,6 +115,7 @@ final class AuthSession {
     /// Uploads a photo and makes it the profile picture.
     func setProfilePhoto(_ image: UIImage) async throws {
         guard let id = user?.id else { throw APIError.unauthorized }
+        let previous = user?.profileImageURL
         guard let jpeg = VehicleStore.jpeg(from: image, maxEdge: 800) else {
             throw APIError.server(code: "invalid_image", status: 0)
         }
@@ -126,10 +127,21 @@ final class AuthSession {
             await ImageCache.shared.store(image, data: jpeg, for: url)
         }
         merge(updated)
+        await deleteOldProfilePhoto(previous)
     }
 
     func removeProfilePhoto() async throws {
+        let previous = user?.profileImageURL
         try await updateProfile(ProfilePatch(profileImageUrl: .some(nil)))
+        await deleteOldProfilePhoto(previous)
+    }
+
+    /// Deletes a replaced or removed profile picture on the server, file included.
+    private func deleteOldProfilePhoto(_ address: String?) async {
+        guard let name = RemoteMedia.fileName(of: address),
+              let media = try? await call({ try await $0.media(token: $1) }),
+              let old = media.first(where: { $0.fileName == name }) else { return }
+        _ = try? await call { try await $0.deleteMedia(id: old.id, token: $1) }
     }
 
     /// Changes the password. The API signs out all other devices and hands this one a new token.

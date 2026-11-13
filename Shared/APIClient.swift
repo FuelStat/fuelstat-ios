@@ -335,6 +335,11 @@ struct APIClient {
         try await send("fillups/\(id)", method: "PATCH", body: OdometerPatch(odometerKm: km), token: token)
     }
 
+    /// The fuel types and energies the server knows (no sign-in needed).
+    func fuels() async throws -> FuelCatalog {
+        try await send("fuels", token: nil)
+    }
+
     // MARK: - Entry list
 
     /// One page of the entry list: fill-ups, charging sessions, expenses, odometer notes and trips, newest first.
@@ -481,6 +486,26 @@ struct APIClient {
             URLQueryItem(name: "type", value: type),
         ], token: token)
         return response.stations
+    }
+
+    /// Photos of a vehicle (all pages).
+    func vehicleMedia(vehicleID: String, token: String) async throws -> [RemoteMedia] {
+        try await allPages("vehicles/\(vehicleID)/media", token: token)
+    }
+
+    /// Deletes a vehicle photo including its file.
+    func deleteVehicleMedia(vehicleID: String, mediaID: String, token: String) async throws {
+        let _: EmptyResponse = try await send("vehicles/\(vehicleID)/media/\(mediaID)", method: "DELETE", token: token)
+    }
+
+    /// The account's own images (profile pictures, all pages).
+    func media(token: String) async throws -> [RemoteMedia] {
+        try await allPages("media", token: token)
+    }
+
+    /// Deletes an own image including its file.
+    func deleteMedia(id: String, token: String) async throws {
+        let _: EmptyResponse = try await send("media/\(id)", method: "DELETE", token: token)
     }
 
     /// Uploads a JPEG as vehicle photo. The server scales it down, strips metadata and stores it as WebP.

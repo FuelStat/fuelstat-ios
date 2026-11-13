@@ -13,6 +13,21 @@ struct CodeField: View {
     @ScaledMetric(relativeTo: .title) private var boxHeight: CGFloat = 56
 
     var body: some View {
+        VStack(spacing: Theme.Spacing.s) {
+            boxes
+            // The boxes cover the hidden field, so its paste menu is out of reach: offer pasting explicitly.
+            // PasteButton reads the clipboard without the system's permission prompt.
+            PasteButton(payloadType: String.self) { strings in
+                guard let text = strings.first else { return }
+                code = String(text.filter(\.isNumber).prefix(length))
+            }
+            .buttonBorderShape(.capsule)
+            .labelStyle(.titleAndIcon)
+            .tint(Theme.brand)
+        }
+    }
+
+    private var boxes: some View {
         ZStack {
             TextField("", text: $code)
                 .textContentType(.oneTimeCode)

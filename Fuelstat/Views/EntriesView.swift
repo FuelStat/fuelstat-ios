@@ -106,7 +106,9 @@ struct EntriesView: View {
                     ForEach(month.items) { item in
                         NavigationLink(value: item) {
                             TimelineRow(item: item, fuelType: vehicle.fuelType,
-                                        category: store.categories?.category(item.category))
+                                        category: store.categories?.category(item.category),
+                                        fuelName: vehicle.fuels.count > 1
+                                            ? store.fuelCatalog?.fuel(item.fuel)?.name : nil)
                         }
                         .listRowBackground(Theme.card)
                         .swipeActions(edge: .trailing) {
@@ -134,7 +136,8 @@ struct EntriesView: View {
         }
         .listStyle(.plain)
         .themedBackground()
-        .searchable(text: $search, prompt: Text("Ort, Kategorie oder Notiz suchen"))
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: Text("Ort, Kategorie oder Notiz suchen"))
         .overlay {
             if !isLoading, items.isEmpty, errorMessage == nil {
                 if search.isEmpty && filter == nil {
@@ -281,6 +284,8 @@ struct TimelineRow: View {
     let item: TimelineItem
     let fuelType: RemoteFuelType
     let category: RemoteCategory?
+    /// Fuel type of a fill-up, shown for vehicles with several (e.g. "Autogas").
+    var fuelName: String?
 
     var body: some View {
         EntryRow(systemImage: symbol, tint: tint, title: item.title(category: category), subtitle: subtitle,
@@ -296,6 +301,7 @@ struct TimelineRow: View {
 
     private var tint: Color {
         switch item.kind {
+        case .fuel where ["lpg", "cng", "bio_cng"].contains(item.fuel ?? ""): Theme.Energy.gas
         case .fuel: fuelType.energyColor
         case .charge: Theme.Energy.electricity
         case .expense: category?.tint ?? Theme.brand
@@ -329,7 +335,9 @@ struct TimelineRow: View {
 
     private var detail: String? {
         switch item.kind {
-        case .fuel, .charge: item.amount.map { "\(Fmt.number($0, digits: 2)) \(item.unitLabel)" }
+        case .fuel, .charge:
+            item.amount.map { [ "\(Fmt.number($0, digits: 2)) \(item.unitLabel)", fuelName ].compactMap { $0 }
+                .joined(separator: " ") }
         default: nil
         }
     }

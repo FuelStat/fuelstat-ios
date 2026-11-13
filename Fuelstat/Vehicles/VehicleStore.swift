@@ -105,8 +105,10 @@ final class VehicleStore {
     /// Uploads a photo and makes it the vehicle's picture.
     func setPhoto(_ image: UIImage, for id: String) async throws {
         guard let jpeg = Self.jpeg(from: image) else { throw APIError.server(code: "invalid_image", status: 0) }
+        let previous = vehicle(id)?.imageURL
         let media = try await auth.call { try await $0.uploadVehicleImage(vehicleID: id, jpeg: jpeg, token: $1) }
         let vehicle = try await auth.call { try await $0.setVehicleImage(id: id, imageURL: media.url, token: $1) }
+        await deleteOldPhoto(previous, of: id)
         if let url = api.resolve(vehicle.imageURL) {
             await ImageCache.shared.store(image, data: jpeg, for: url)
         }
@@ -114,8 +116,20 @@ final class VehicleStore {
     }
 
     func removePhoto(of id: String) async throws {
+        let previous = vehicle(id)?.imageURL
         let vehicle = try await auth.call { try await $0.setVehicleImage(id: id, imageURL: nil, token: $1) }
         replace(vehicle)
+        await deleteOldPhoto(previous, of: id)
+    }
+
+    /// Deletes the photo that was replaced or removed, file included, as the web app does. Without this the
+    /// file stayed on the server and its signed address kept working until it expired. Failures are ignored:
+    /// the vehicle no longer shows the photo either way.
+    private func deleteOldPhoto(_ address: String?, of id: String) async {
+        guard let name = RemoteMedia.fileName(of: address),
+              let media = try? await auth.call({ try await $0.vehicleMedia(vehicleID: id, token: $1) }),
+              let old = media.first(where: { $0.fileName == name }) else { return }
+        _ = try? await auth.call { try await $0.deleteVehicleMedia(vehicleID: id, mediaID: old.id, token: $1) }
     }
 
     func fillups(of id: String, limit: Int) async throws -> [RemoteFillup] {
@@ -156,8 +170,8 @@ final class VehicleStore {
         }.map(\.element)
     }
 
-    /// Saves a fill-up and refreshes the vehicle's key figures. Returns the API's odometer warnings.
-    func addFillup(_ input: FillupInput) async throws -> [String] {
+    /// Saves a fill-up and refreshes the vehicle's key figures. Returns its id and the API's odometer warnings.
+    func addFillup(_ input: FillupInput) async throws -> (id: String, warnings: [String]) {
         let created = try await auth.call { try await $0.createFillup(input, token: $1) }
         entryChanges += 1
         WidgetRefresh.reload()
@@ -165,7 +179,35 @@ final class VehicleStore {
         if let figures = try? await auth.call({ try await $0.stats(vehicleID: input.vehicleId, token: $1) }) {
             stats[input.vehicleId] = figures
         }
-        return created.warnings.compactMap(\.message)
+        return (created.id, created.warnings.compactMap(\.message))
+    }
+
+    // MARK: - Fuel types (FuelStat/fuelstat#140)
+
+    /// Fuel types the server knows (`GET /fuels`), loaded once per session; nil on servers without them.
+    private(set) var fuelCatalog: FuelCatalog?
+
+    @discardableResult
+    func loadFuelCatalog() async -> FuelCatalog? {
+        if let fuelCatalog { return fuelCatalog }
+        fuelCatalog = try? await api.fuels()
+        return fuelCatalog
+    }
+
+    /// The vehicle's fuel types for fuelling or charging; empty when the server or the vehicle has none.
+    func fuelOptions(of vehicle: RemoteVehicle, charging: Bool) -> [FuelOption] {
+        guard let fuelCatalog else { return [] }
+        return FuelChoice.options(vehicleFuels: vehicle.fuels, catalog: fuelCatalog.fuels, charging: charging)
+    }
+
+    /// Whether the vehicle can be fuelled and/or charged: from its fuel types, otherwise from the drive type.
+    func entryModes(of vehicle: RemoteVehicle) -> (fuel: Bool, charge: Bool) {
+        if let fuelCatalog {
+            let modes = FuelChoice.modes(vehicleFuels: vehicle.fuels, catalog: fuelCatalog.fuels)
+            if modes.fuel || modes.charge { return modes }
+        }
+        let units = vehicle.fuelType.fillupUnits
+        return (units.contains { $0 != "kwh" }, units.contains("kwh"))
     }
 
     // MARK: - Entry list, expenses, trips
@@ -332,9 +374,14 @@ final class VehicleStore {
     }
 
     /// Price per unit of the latest fill-up with this unit, as a default for the next one.
-    func lastPrice(of id: String, unit: String) async -> Double? {
-        guard let recent = try? await fillups(of: id, limit: 10) else { return nil }
-        return recent.first { $0.unit == unit && $0.amount > 0 }.flatMap { fillup in
+    /// With a fuel type only fill-ups of that type count, so a petrol fill-up never gets the LPG price.
+    func lastPrice(of id: String, unit: String, fuel: String? = nil) async -> Double? {
+        guard let recent = try? await fillups(of: id, limit: 20) else { return nil }
+        return recent.first { fillup in
+            guard fillup.unit == unit, fillup.amount > 0 else { return false }
+            guard let fuel, let other = fillup.fuel else { return true }
+            return other == fuel
+        }.flatMap { fillup in
             fillup.totalCostEur.map { $0 / fillup.amount }
         }
     }

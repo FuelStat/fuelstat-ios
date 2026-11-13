@@ -31,13 +31,18 @@ https://github.com/FuelStat/fuelstat
 
 ## Development
 
-### Current state (0.1.0 – MVP)
+### Current state (0.2.0 – Foundation)
 
-The app is an **MVP**, not yet an alpha: it runs only from Xcode on your own
-device (free developer account, valid 7 days), there is no TestFlight or App
-Store build. Version 0.1.0 marks this state; the first regular release is
-[0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)
-(see Roadmap). Developed against Fuelstat server 0.11.0.
+Version 0.2.0 is the first regular release
+([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)):
+sign-in and account are complete, and much of
+[0.3.0 – Capture](https://github.com/FuelStat/fuelstat-ios/milestone/2) and
+[0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) is already in.
+It still runs only from Xcode on your own device (free developer account,
+valid 7 days); there is no TestFlight or App Store build. Developed against
+Fuelstat server 0.12.1 (device sessions and minimum app version,
+FuelStat/fuelstat#117, #118); with an older server the app falls back to the
+7-day sign-in and has no device list.
 
 The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
 self-hosted servers can be entered on the sign-in screen):
@@ -135,6 +140,11 @@ self-hosted servers can be entered on the sign-in screen):
   `recommended_version` Profil shows a hint
 - Vehicle page with photo, key figures, due dates, entries, chart and master data
 - Create, edit and delete vehicles; plan limits from the API are shown as a message
+- Several fuel types per vehicle (FuelStat/fuelstat#140, catalog from
+  `GET /fuels`): the entry sheet offers the vehicle's types (e.g. Super E5 and
+  Autogas) and sends `fuel`; the price is prefilled from the last fill-up of
+  that type; the station search uses the type's Tankerkönig fuel; key figures
+  and charts per energy (`energies` in `/stats`, side energies marked)
 - Record fill-ups and charging sessions: last vehicle and last price prefilled,
   any two of amount, price per unit and total give the third, odometer warnings
   from the API are shown

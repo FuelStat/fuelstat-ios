@@ -123,6 +123,7 @@ private struct MainTabs: View {
         }
         .task {
             await store.load()
+            await store.loadFuelCatalog()
             // Lets Siri understand phrases with vehicle names ("VW Golf in Fuelstat öffnen").
             FuelstatShortcuts.updateAppShortcutParameters()
             // Replan local reminders from the API's due dates at every start (loading them does that).

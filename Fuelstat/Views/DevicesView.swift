@@ -9,6 +9,8 @@ struct DevicesView: View {
     @State private var sessions: [DeviceSession] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    /// The server has no device sessions yet (before FuelStat/fuelstat#117).
+    @State private var isUnsupported = false
     @State private var ending: DeviceSession?
     @State private var confirmingLogout = false
 
@@ -21,32 +23,41 @@ struct DevicesView: View {
                 .listRowBackground(Theme.card)
             }
 
-            Section {
-                ForEach(sessions) { session in
-                    DeviceRow(session: session)
-                        .swipeActions(edge: .trailing) {
-                            Button("Abmelden", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                                if session.isCurrent { confirmingLogout = true } else { ending = session }
-                            }
-                        }
-                }
-                if sessions.isEmpty, !isLoading, errorMessage == nil {
-                    Text("Keine Apps angemeldet.")
+            if isUnsupported {
+                Section {
+                    Label("Dieser Server bietet noch keine Liste der angemeldeten Geräte. Sie kommt mit einer neueren Fuelstat-Version auf dem Server.",
+                          systemImage: "info.circle")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
-            } footer: {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    if !auth.hasDeviceSession {
-                        Text("Dieses iPhone nutzt noch die frühere Anmeldung und erscheint erst nach dem nächsten Anmelden in der Liste. Dann bleibst du angemeldet, solange du die App mindestens alle 180 Tage öffnest.")
+                .listRowBackground(Theme.card)
+            } else {
+                Section {
+                    ForEach(sessions) { session in
+                        DeviceRow(session: session)
+                            .swipeActions(edge: .trailing) {
+                                Button("Abmelden", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                                    if session.isCurrent { confirmingLogout = true } else { ending = session }
+                                }
+                            }
                     }
-                    Text("Zum Abmelden nach links wischen. Die Web-App erscheint hier nicht; sie meldest du über „Auf allen Geräten abmelden“ ab.")
+                    if sessions.isEmpty, !isLoading, errorMessage == nil {
+                        Text("Keine Apps angemeldet.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        if !auth.hasDeviceSession {
+                            Text("Dieses iPhone nutzt noch die frühere Anmeldung und erscheint erst nach dem nächsten Anmelden in der Liste. Dann bleibst du angemeldet, solange du die App mindestens alle 180 Tage öffnest.")
+                        }
+                        Text("Zum Abmelden nach links wischen. Die Web-App erscheint hier nicht; sie meldest du über „Auf allen Geräten abmelden“ ab.")
+                    }
                 }
+                .listRowBackground(Theme.card)
             }
-            .listRowBackground(Theme.card)
         }
         .themedBackground()
-        .overlay { if isLoading, sessions.isEmpty { ProgressView() } }
+        .overlay { if isLoading, sessions.isEmpty, !isUnsupported { ProgressView() } }
         .navigationTitle("Angemeldete Geräte")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
@@ -69,8 +80,12 @@ struct DevicesView: View {
             // This device first, then by last use as the API sorts them.
             sessions = try await auth.sessions().sorted { $0.isCurrent && !$1.isCurrent }
             errorMessage = nil
+            isUnsupported = false
         } catch is CancellationError {
             return
+        } catch APIError.server(_, 404) {
+            isUnsupported = true
+            errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -116,7 +116,7 @@ extension VehicleWidgetEntry {
             }
             async let stats = try? api.stats(vehicleID: vehicle.id, token: token)
             async let reminders = try? api.reminders(vehicleID: vehicle.id, token: token)
-            let next = await RemoteReminder.byUrgency(reminders ?? []).first
+            let next = await RemoteReminder.next(reminders ?? [])
             let snapshot = VehicleSnapshot(
                 id: vehicle.id, name: vehicle.name, licensePlate: vehicle.licensePlate, fuelType: vehicle.fuelType,
                 averageConsumption: await stats?.averageConsumption,
