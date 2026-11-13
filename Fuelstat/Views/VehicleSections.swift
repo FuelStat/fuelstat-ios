@@ -267,52 +267,41 @@ struct RemindersListView: View {
 
 // MARK: - Entries
 
-/// A fill-up or charging session as an `EntryRow`.
-struct FillupEntryRow: View {
-    let fillup: RemoteFillup
-    let fuelType: RemoteFuelType
-
-    var body: some View {
-        EntryRow(
-            systemImage: fillup.isCharging ? "bolt.fill" : "fuelpump.fill",
-            tint: fillup.isCharging ? Theme.Energy.electricity : fuelType.energyColor,
-            title: fillup.station ?? (fillup.isCharging ? String(localized: "Laden") : String(localized: "Tanken")),
-            subtitle: subtitle,
-            amount: fillup.totalCostEur.map { $0.formatted(.currency(code: "EUR")) },
-            detail: "\(Fmt.number(fillup.amount, digits: 2)) \(fillup.unitLabel)",
-            badge: fillup.isFull ? nil : "Teil"
-        )
-    }
-
-    private var subtitle: String {
-        var parts: [String] = []
-        if let date = fillup.filledAt { parts.append(date.formatted(.dateTime.day().month(.abbreviated))) }
-        if let km = fillup.odometerKm { parts.append(Fmt.kilometres(km)) }
-        return parts.isEmpty ? "–" : parts.joined(separator: " · ")
-    }
-}
-
+/// The latest fill-ups and charging sessions (timeline of the API); each row opens the entry like in "Einträge".
 struct RecentEntriesCard: View {
-    let fillups: [RemoteFillup]
-    let fuelType: RemoteFuelType
+    let store: VehicleStore
+    let vehicle: RemoteVehicle
+    let items: [TimelineItem]
     var onShowAll: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            SectionHeader(title: "Letzte Einträge", action: fillups.isEmpty ? nil : onShowAll)
+            SectionHeader(title: "Letzte Einträge", action: items.isEmpty ? nil : onShowAll)
             CardContainer(padding: 0) {
                 VStack(spacing: 0) {
-                    if fillups.isEmpty {
+                    if items.isEmpty {
                         Text("Noch keine Tank- oder Ladevorgänge.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(Theme.Spacing.cardPadding)
                     }
-                    ForEach(Array(fillups.enumerated()), id: \.element.id) { index, fillup in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         if index > 0 { Divider().padding(.leading, Theme.Spacing.m + Theme.iconCircle + Theme.Spacing.s) }
-                        FillupEntryRow(fillup: fillup, fuelType: fuelType)
+                        NavigationLink(value: Route.entry(vehicleID: vehicle.id, item: item)) {
+                            HStack(spacing: Theme.Spacing.xs) {
+                                TimelineRow(item: item, fuelType: vehicle.fuelType, category: nil,
+                                            fuelName: vehicle.fuels.count > 1
+                                                ? store.fuelCatalog?.fuel(item.fuel)?.name : nil)
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
                             .padding(.horizontal, Theme.Spacing.cardPadding)
                             .padding(.vertical, Theme.Spacing.s)
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }

@@ -10,7 +10,7 @@ struct StartView: View {
     var onManageVehicles: () -> Void
 
     @State private var path: [Route] = []
-    @State private var fillups: [RemoteFillup] = []
+    @State private var latest: [TimelineItem] = []
     @State private var reminders: [RemoteReminder] = []
     @State private var showingStations = false
 
@@ -55,7 +55,7 @@ struct StartView: View {
 
                 NearbyCard(store: store, vehicle: vehicle) { showingStations = true }
 
-                RecentEntriesCard(fillups: fillups, fuelType: vehicle.fuelType, onShowAll: onShowEntries)
+                RecentEntriesCard(store: store, vehicle: vehicle, items: latest, onShowAll: onShowEntries)
             }
             .padding(.horizontal, Theme.Spacing.screen)
             .padding(.bottom, Theme.Spacing.xl)
@@ -71,7 +71,7 @@ struct StartView: View {
                 _ = await (vehicles, entries)
             }.value
         }
-        .task(id: "\(vehicle.id)-\(refresh)") { await load(vehicle.id) }
+        .task(id: "\(vehicle.id)-\(refresh)-\(store.entryChanges)") { await load(vehicle.id) }
         .sheet(isPresented: $showingStations) {
             if let type = vehicle.fuelType.stationSearchType(unit: "l") {
                 StationPickerView(store: store, type: type)
@@ -95,9 +95,9 @@ struct StartView: View {
     }
 
     private func load(_ id: String) async {
-        async let latest = try? store.fillups(of: id, limit: 5)
+        async let entries = try? store.latestFillups(of: id, limit: 5)
         async let due = try? store.reminders(of: id)
-        fillups = await latest ?? fillups
+        latest = await entries ?? latest
         reminders = await due ?? reminders
     }
 }
