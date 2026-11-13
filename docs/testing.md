@@ -99,9 +99,12 @@ truth, so figures must match the web app exactly.
 ### 2. Session: renewal and sign-out
 
 - [ ] Quit and reopen the app: still signed in, no sign-in screen
-- [ ] Token renewal: use the app again more than 20 hours after sign-in (or
-      after the last renewal); it stays signed in and requests still work.
-      Start the run a day before the release so this step is covered
+- [ ] Session renewal: leave the app for more than 30 minutes (access token
+      expired), open it again; it stays signed in and loads data without a
+      sign-in screen. Same for the widget and a Siri action after 30 minutes
+- [ ] Next day: still signed in, widget still shows data
+- [ ] Sign out on the iPhone: the device disappears from the web app's
+      device list (Einstellungen → Sicherheit)
 - [ ] "Abmelden" returns to the welcome screen; reopening the app does not
       sign in again; the widget shows its signed-out state
 - [ ] "Auf allen Geräten abmelden" (Konto): this device is signed out; a web
@@ -126,8 +129,10 @@ truth, so figures must match the web app exactly.
 - [ ] Sign out and in again with the new 2FA
 - [ ] Turn 2FA off with password and code; a wrong code gives an error and
       does not sign out
-- [ ] "Geräte" shows the note that the device list is not available yet
-      (until FuelStat/fuelstat#117)
+- [ ] Konto → Angemeldete Geräte lists this iPhone as "Dieses Gerät" with
+      app version and last use; an app signed in elsewhere (second device or
+      simulator) appears too and can be signed out with a swipe – that device
+      then lands on the sign-in screen
 
 ### 4. Vehicles
 
@@ -195,6 +200,10 @@ truth, so figures must match the web app exactly.
 - [ ] Profil → Rechtliches: Impressum, Datenschutz, Nutzungsbedingungen open
       the pages of the server in use
 - [ ] Profil → Neuigkeiten opens the server's news page
+- [ ] `/health` → `apps.ios`: with `minimum_version` above the app's version
+      (self-hosted, `backend/src/lib/appVersions.js`) the app shows "Bitte
+      aktualisiere Fuelstat"; with only `recommended_version` above it, Profil
+      shows the hint; with `null` nothing appears
 - [ ] Profil shows App-Version (the version being released) and
       Server-Version (equal to `/health`)
 - [ ] Feedback: "Feedback senden" arrives at the server operator with app

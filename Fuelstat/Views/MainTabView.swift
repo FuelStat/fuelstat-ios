@@ -47,6 +47,7 @@ enum Route: Hashable {
     case accountEmail
     case accountPassword
     case accountTwoFactor
+    case accountDevices
     case tripLog(String)
     case sharing(String)
     case invitations
@@ -206,6 +207,7 @@ extension View {
             case .accountEmail: EmailEditView()
             case .accountPassword: PasswordChangeView()
             case .accountTwoFactor: TwoFactorView()
+            case .accountDevices: DevicesView()
             case .tripLog(let id): TripLogView(store: store, vehicleID: id)
             case .sharing(let id): VehicleSharingView(store: store, vehicleID: id)
             case .invitations: InvitationsView(store: store)

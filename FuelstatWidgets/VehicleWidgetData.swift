@@ -22,8 +22,8 @@ struct WidgetVehicleQuery: EntityQuery {
     }
 
     func suggestedEntities() async throws -> [WidgetVehicleEntity] {
-        guard let token = KeychainStore.loadToken() else { return [] }
-        return try await APIClient.configured.vehicles(token: token)
+        guard KeychainStore.loadToken() != nil else { return [] }
+        return try await SignedInAPI.call(.configured) { api, token in try await api.vehicles(token: token) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             .map { WidgetVehicleEntity(id: $0.id, name: $0.name, licensePlate: $0.licensePlate) }
     }
@@ -94,13 +94,15 @@ struct VehicleProvider: AppIntentTimelineProvider {
     }
 
     private func load(_ configuration: SelectVehicleIntent) async -> VehicleWidgetEntry {
-        guard let token = KeychainStore.loadToken() else {
+        guard KeychainStore.loadToken() != nil else {
             return VehicleWidgetEntry(date: .now, state: .signedOut)
         }
         let api = APIClient.configured
         do {
-            let vehicles = try await api.vehicles(token: token)
+            // Renews the device session if needed; the calls below then share the current token.
+            let vehicles = try await SignedInAPI.call(api) { api, token in try await api.vehicles(token: token) }
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            let token = try await TokenStore.shared.accessToken(api: api)
             let chosen = configuration.vehicle.flatMap { choice in vehicles.first { $0.id == choice.id } }
             guard let vehicle = chosen ?? vehicles.first else {
                 return VehicleWidgetEntry(date: .now, state: .noVehicle)

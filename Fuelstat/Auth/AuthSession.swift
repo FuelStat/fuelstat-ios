@@ -32,15 +32,16 @@ final class AuthSession {
         return nil
     }
 
-    /// Validates a stored token via `/whoami`. Keeps the user signed in when offline.
+    /// Validates the stored sign-in via `/whoami`, renewing the device session if needed. Keeps the user signed in
+    /// when offline.
     func restore() async {
         guard let stored = KeychainStore.loadToken() else {
             state = .signedOut
             return
         }
         do {
-            let user = try await api.whoami(token: stored)
-            token = stored
+            let user = try await SignedInAPI.call(api) { try await $0.whoami(token: $1) }
+            token = KeychainStore.loadToken() ?? stored
             storeUser(user)
             state = .signedIn(user)
             await renewIfNeeded()
@@ -66,15 +67,35 @@ final class AuthSession {
 
     /// Throws `APIError.server(code: "mfa_required", …)` when a 2FA code is needed.
     func login(email: String, password: String, code: String? = nil) async throws {
-        let response = try await api.login(email: email, password: password, code: code)
-        signIn(response)
+        let response = try await api.login(email: email, password: password, code: code, device: Self.device)
+        await signIn(response)
         await refreshUser()
     }
 
     func register(email: String, password: String) async throws {
-        let response = try await api.register(email: email, password: password)
-        signIn(response)
+        let response = try await api.register(email: email, password: password, device: Self.device)
+        await signIn(response)
         await refreshUser()
+    }
+
+    /// This iPhone as the API lists it under the signed-in devices (FuelStat/fuelstat#117). Since iOS 16 the
+    /// device name is the model ("iPhone") unless the app has a special entitlement.
+    private static var device: DeviceInfo {
+        DeviceInfo(name: UIDevice.current.name, appVersion: AppVersion.marketing)
+    }
+
+    /// The sign-in uses a device session with a refresh token (sign-ins before FuelStat/fuelstat#117 do not).
+    var hasDeviceSession: Bool { KeychainStore.loadRefreshToken() != nil }
+
+    // MARK: - Devices
+
+    func sessions() async throws -> [DeviceSession] {
+        try await call { try await $0.sessions(token: $1) }
+    }
+
+    /// Signs another app out. For this device use `logout()`.
+    func endSession(_ id: String) async throws {
+        try await call { try await $0.deleteSession(id: id, token: $1) }
     }
 
     /// Reloads the account from `/whoami` (verification state, terms, 2FA, profile). Errors keep the known data.
@@ -114,9 +135,11 @@ final class AuthSession {
     /// Changes the password. The API signs out all other devices and hands this one a new token.
     func changePassword(current: String, new: String) async throws {
         let renewed = try await call { try await $0.changePassword(current: current, new: new, token: $1) }
-        KeychainStore.saveToken(renewed)
-        token = renewed
+        // From an app with a device session the API starts a new one for this device.
+        await TokenStore.shared.store(token: renewed.token, refreshToken: renewed.refreshToken)
+        token = renewed.token
         UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)
+        WidgetRefresh.reload()
     }
 
     /// Sends the confirmation mail again. Returns the address it went to.
@@ -175,9 +198,14 @@ final class AuthSession {
         state = .signedIn(user)
     }
 
+    /// Signs this device out: ends its device session, or revokes the token of an older sign-in.
     func logout() async {
-        if let token {
-            try? await api.revoke(token: token)
+        if token != nil {
+            if hasDeviceSession {
+                _ = try? await SignedInAPI.call(api) { try await $0.deleteSession(id: "current", token: $1) }
+            } else if let token {
+                try? await api.revoke(token: token)
+            }
         }
         clear()
     }
@@ -185,14 +213,11 @@ final class AuthSession {
     /// Deletes the account on the server, then removes everything the app stored on this device
     /// (token, cached images, settings) and returns to the welcome screen.
     func deleteAccount() async throws {
-        guard case .signedIn(let user) = state, let token else { throw APIError.unauthorized }
+        guard case .signedIn(let user) = state else { throw APIError.unauthorized }
         do {
-            try await api.deleteAccount(userID: user.id, token: token)
+            try await call { try await $0.deleteAccount(userID: user.id, token: $1) }
         } catch APIError.server(code: "user_not_found", _), APIError.server(code: "account_not_found", _) {
             // Already gone (e.g. deleted in the web app): clean up all the same.
-        } catch APIError.unauthorized {
-            clear(notice: APIError.unauthorized.localizedDescription)
-            throw APIError.unauthorized
         }
         await ImageCache.shared.removeAll()
         ServerSettings.save(APIClient.defaultBaseURL)
@@ -203,20 +228,36 @@ final class AuthSession {
         clear(notice: String(localized: "Dein Konto wurde gelöscht."))
     }
 
-    /// Runs an API call with the current token. An expired or revoked token signs the user out.
+    /// Runs an API call with a valid token, renewing the device session when it is about to expire or after a 401.
+    /// A sign-in that cannot be renewed (ended session, revoked token) signs the user out.
     func call<T>(_ operation: (APIClient, String) async throws -> T) async throws -> T {
-        guard let token else { throw APIError.unauthorized }
+        guard token != nil else { throw APIError.unauthorized }
         do {
-            return try await operation(api, token)
+            let result = try await SignedInAPI.call(api, operation)
+            token = KeychainStore.loadToken() ?? token
+            return result
         } catch APIError.unauthorized {
             clear(notice: APIError.unauthorized.localizedDescription)
             throw APIError.unauthorized
         }
     }
 
-    /// Swaps the token for a fresh one at most once a day, so active users stay signed in.
-    /// After 90 days without a password sign-in the API refuses (`reauth_required`) and the user has to sign in again.
+    /// Keeps the sign-in alive when the app comes to the foreground.
+    /// - Device session: renews the 30-minute token if it is about to run out, so widgets find a fresh one.
+    /// - Older sign-in: swaps the 7-day token at most once a day; after 90 days without a password sign-in the API
+    ///   refuses (`reauth_required`) and the user has to sign in again.
     func renewIfNeeded() async {
+        if hasDeviceSession {
+            guard token != nil else { return }
+            do {
+                token = try await TokenStore.shared.accessToken(api: api)
+            } catch APIError.unauthorized {
+                clear(notice: APIError.unauthorized.localizedDescription)
+            } catch {
+                // Offline: try again next time.
+            }
+            return
+        }
         guard let current = token, !isRenewing else { return }
         if let last = UserDefaults.standard.object(forKey: Self.renewedAtKey) as? Date,
            Date.now.timeIntervalSince(last) < Self.renewalInterval {
@@ -238,8 +279,9 @@ final class AuthSession {
         }
     }
 
-    private func signIn(_ response: AuthResponse) {
-        KeychainStore.saveToken(response.token)
+    private func signIn(_ response: AuthResponse) async {
+        // A server without device sessions sends no refresh token; any old one is removed then.
+        await TokenStore.shared.store(token: response.token, refreshToken: response.refreshToken)
         token = response.token
         signOutNotice = nil
         UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)

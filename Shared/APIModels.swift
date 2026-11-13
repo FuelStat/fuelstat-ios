@@ -1,4 +1,5 @@
 import Foundation
+import FuelstatCore
 
 /// The signed-in account. Login and registration send only some fields; `/whoami` sends all of them.
 struct APIUser: Decodable, Equatable {
@@ -125,12 +126,61 @@ struct VerificationSent: Decodable {
 
 struct AuthResponse: Decodable {
     let token: String
+    /// Only for app sign-ins with a device (FuelStat/fuelstat#117).
+    let refreshToken: String?
+    let session: DeviceSession?
     let user: APIUser
 }
 
-/// Response of `POST /auth/refresh`.
+/// Response of `POST /auth/refresh` and `POST /auth/password`. From an app with a device session the password
+/// change also returns a new refresh token, because it ends all sessions including this one.
 struct TokenResponse: Decodable {
     let token: String
+    let refreshToken: String?
+}
+
+/// Response of `POST /auth/session/refresh`: a new pair, the old refresh token is used up.
+struct SessionTokens: Decodable {
+    let token: String
+    let refreshToken: String
+}
+
+/// What the app tells the API about this device when signing in; the API creates a device session from it.
+struct DeviceInfo: Encodable {
+    let name: String
+    let platform = "ios"
+    let appVersion: String?
+}
+
+/// An app signed in to the account, from `GET /auth/sessions`. The web app has no device sessions.
+struct DeviceSession: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let platform: String
+    let appVersion: String?
+    let createdAt: Date?
+    let lastUsedAt: Date?
+    /// The session of this device.
+    let isCurrent: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, platform
+        case appVersion = "app_version"
+        case createdAt = "created_at"
+        case lastUsedAt = "last_used_at"
+        case isCurrent = "current"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = c.text(.name) ?? ""
+        platform = c.text(.platform) ?? "other"
+        appVersion = c.text(.appVersion)
+        createdAt = c.text(.createdAt).flatMap(APIDate.parse)
+        lastUsedAt = c.text(.lastUsedAt).flatMap(APIDate.parse)
+        isCurrent = (try? c.decodeIfPresent(Bool.self, forKey: .isCurrent)) ?? false
+    }
 }
 
 /// Response of `GET /health` (no sign-in needed).
@@ -139,10 +189,40 @@ struct HealthResponse: Decodable {
     let version: String?
     /// Current version of the terms of use (a date such as `2026-11-09`), if the server has terms.
     let termsVersion: String?
+    /// Minimum and recommended iOS app version (FuelStat/fuelstat#118); nil on older servers.
+    let ios: AppRequirements?
+
+    struct AppRequirements: Decodable {
+        let minimumVersion: String?
+        let recommendedVersion: String?
+
+        enum CodingKeys: String, CodingKey {
+            case minimumVersion = "minimum_version"
+            case recommendedVersion = "recommended_version"
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
-        case status, version
+        case status, version, apps
         case termsVersion = "terms_version"
+    }
+
+    private struct Apps: Decodable {
+        let ios: AppRequirements?
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        status = try c.decode(String.self, forKey: .status)
+        version = c.text(.version)
+        termsVersion = c.text(.termsVersion)
+        ios = (try? c.decodeIfPresent(Apps.self, forKey: .apps))?.ios
+    }
+
+    /// Whether this app version is still supported, as announced by the server.
+    var appStatus: AppVersionCheck.Status {
+        AppVersionCheck.status(current: AppVersion.marketing ?? "", minimum: ios?.minimumVersion,
+                               recommended: ios?.recommendedVersion)
     }
 }
 

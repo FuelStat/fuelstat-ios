@@ -9,6 +9,7 @@ import Security
 enum KeychainStore {
     private static let service = "org.fuelstat.ios"
     private static let tokenAccount = "api-token"
+    private static let refreshTokenAccount = "api-refresh-token"
     private static let serverAccount = "api-baseURL"
 
     /// The shared access group, or nil in builds without signing (e.g. CI), where only the app's own group exists.
@@ -20,7 +21,17 @@ enum KeychainStore {
 
     static func loadToken() -> String? { load(tokenAccount) }
     static func saveToken(_ token: String) { save(token, as: tokenAccount) }
-    static func deleteToken() { delete(tokenAccount) }
+    static func deleteToken() {
+        delete(tokenAccount)
+        delete(refreshTokenAccount)
+    }
+
+    /// Refresh token of the device session (FuelStat/fuelstat#117). Each one works exactly once; after a swap the
+    /// new one must be stored before anything else happens. Sign-ins from before device sessions have none.
+    static func loadRefreshToken() -> String? { load(refreshTokenAccount) }
+    static func saveRefreshToken(_ token: String?) {
+        if let token { save(token, as: refreshTokenAccount) } else { delete(refreshTokenAccount) }
+    }
 
     /// Server address for the widgets; the app keeps its own copy in UserDefaults (see `ServerSettings`).
     static func loadServer() -> String? { load(serverAccount) }
