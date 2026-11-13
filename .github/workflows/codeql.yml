@@ -1,11 +1,11 @@
 
 name: "CodeQL Security Analysis"
 
+# Not on pull requests: the Swift analysis traces a full Xcode build and takes about 30 minutes, while the
+# regular CI build (ci.yml) takes under 3. It runs after merging to main, weekly and on demand; findings show up
+# in the Security tab.
 on:
   push:
-    branches:
-      - main
-  pull_request:
     branches:
       - main
   schedule:
@@ -45,12 +45,14 @@ jobs:
 
       - name: Build app
         run: |
+          # No index store: CodeQL does not need it, and building it makes the traced build slower.
           xcodebuild build \
             -project Fuelstat.xcodeproj \
             -scheme Fuelstat \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
