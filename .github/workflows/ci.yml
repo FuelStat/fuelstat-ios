@@ -26,6 +26,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Select Xcode 27
+        # The app targets iOS 27 (#59); pick the newest Xcode 27 of the runner image.
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$xcode" ]; then
+            echo "::error::No Xcode 27 on this runner image"; ls -d /Applications/Xcode*.app; exit 1
+          fi
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
       - name: Test FuelstatCore
         working-directory: Packages/FuelstatCore
         run: swift test
