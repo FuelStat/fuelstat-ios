@@ -684,12 +684,13 @@ struct RemoteReminder: Decodable, Identifiable {
 
     /// Sort key for urgency: status first, then days left.
     static func urgencyKey(_ reminder: RemoteReminder) -> UrgencyKey {
-        let rank = reminder.isInfo ? 4 : switch reminder.status {
+        let statusRank = switch reminder.status {
         case .overdue: 0
         case .soon: 1
         case .ok: 2
         case .unknown: 3
         }
+        let rank = reminder.isInfo ? 4 : statusRank
         return UrgencyKey(rank: rank, days: reminder.days ?? .max)
     }
 
