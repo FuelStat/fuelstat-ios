@@ -660,17 +660,31 @@ struct RemoteReminder: Decodable, Identifiable {
     let status: Status
     /// Days until the due date (negative when overdue).
     let days: Int?
+    /// `info`: only the last entry, no due date (e.g. the last tyre change, FuelStat/fuelstat#172).
+    let isInfo: Bool
+    /// Last entry of the category: date, odometer and description.
+    let lastDate: Date?
+    let lastOdometerKm: Double?
+    let lastDescription: String?
 
     var id: String { category + title }
 
-    /// Most urgent first: overdue, soon, then by days left. Only orders what the API calculated.
+    /// A real due date the API could work out (not `info`, not `unbekannt`).
+    var isScheduled: Bool { !isInfo && status != .unknown && (dueDate != nil || dueKm != nil) }
+
+    /// Most urgent first: overdue, soon, then by days left; info rows last. Only orders what the API calculated.
     static func byUrgency(_ list: [RemoteReminder]) -> [RemoteReminder] {
         list.sorted { urgencyKey($0) < urgencyKey($1) }
     }
 
+    /// The next due date for widgets and Siri: the most urgent one with a date or distance.
+    static func next(_ list: [RemoteReminder]) -> RemoteReminder? {
+        byUrgency(list).first(where: \.isScheduled)
+    }
+
     /// Sort key for urgency: status first, then days left.
     static func urgencyKey(_ reminder: RemoteReminder) -> UrgencyKey {
-        let rank = switch reminder.status {
+        let rank = reminder.isInfo ? 4 : switch reminder.status {
         case .overdue: 0
         case .soon: 1
         case .ok: 2
@@ -692,14 +706,17 @@ struct RemoteReminder: Decodable, Identifiable {
         case "WARTUNG", "INSPEKTION", "SERVICE", "OEL", "ÖL": "wrench.and.screwdriver"
         case "VERSICHERUNG", "INSURANCE": "shield"
         case "STEUER", "TAX": "eurosign.circle"
+        case "REIFEN": "circle.circle"
         default: "calendar.badge.exclamationmark"
         }
     }
 
     enum CodingKeys: String, CodingKey {
-        case title, category, status, days
+        case title, category, status, days, kind, last
         case dueDate = "due_date"
         case dueKm = "due_km"
+        case lastOdometerKm = "last_odometer_km"
+        case lastDescription = "last_description"
     }
 
     init(from decoder: Decoder) throws {
@@ -711,6 +728,10 @@ struct RemoteReminder: Decodable, Identifiable {
         dueKm = c.number(.dueKm)
         status = c.text(.status).flatMap(Status.init(rawValue:)) ?? .unknown
         days = c.number(.days).map { Int($0) }
+        isInfo = c.text(.kind) == "info"
+        lastDate = c.text(.last).flatMap(APIDate.parseDay)
+        lastOdometerKm = c.number(.lastOdometerKm)
+        lastDescription = c.text(.lastDescription)
     }
 }
 

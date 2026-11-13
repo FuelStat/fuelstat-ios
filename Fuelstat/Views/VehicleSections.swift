@@ -155,18 +155,42 @@ struct ReminderRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                if let last = lastText {
+                    Text(last)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
             Spacer(minLength: Theme.Spacing.xs)
-            StatusBadge(status: reminder.status.badge)
+            // Info rows (e.g. tyres) have no due date and therefore no status (FuelStat/fuelstat#172).
+            if !reminder.isInfo {
+                StatusBadge(status: reminder.status.badge)
+            }
         }
         .accessibilityElement(children: .combine)
     }
 
+    /// Due date and/or distance; without any (status `unbekannt`, e.g. TÜV without an entry) a request to record
+    /// the last one, so the API can work out the next.
     private var dueText: String? {
+        if reminder.isInfo {
+            return reminder.lastDate == nil ? String(localized: "\(reminder.title) erfassen") : nil
+        }
         var parts: [String] = []
         if let date = reminder.dueDate { parts.append(APIDate.formatDay(date)) }
         if let km = reminder.dueKm { parts.append(Fmt.kilometres(km)) }
+        if parts.isEmpty, reminder.status == .unknown { return String(localized: "Letzten Termin erfassen") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "zuletzt am 3. Mai 2026 bei 45.000 km · Winterreifen"
+    private var lastText: String? {
+        guard let date = reminder.lastDate else { return nil }
+        var text = String(localized: "zuletzt am \(APIDate.formatDay(date))")
+        if let km = reminder.lastOdometerKm { text += " " + String(localized: "bei \(Fmt.kilometres(km))") }
+        if let note = reminder.lastDescription { text += " · " + note }
+        return text
     }
 }
 

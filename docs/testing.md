@@ -259,7 +259,13 @@ truth, so figures must match the web app exactly.
 - [ ] Chart "Verbrauch je Tankfüllung" shows one point per full fill-up;
       "Keine Werte in diesem Zeitraum." when there are none
 - [ ] Due dates (`/reminders`) on Start and on the vehicle page match the web
-      app; "Keine Termine" when there are none
+      app, each with "zuletzt am … bei … km · description" of the last entry;
+      "Keine Termine" when there are none
+- [ ] TÜV without a TÜV entry and a first registration long ago: status
+      "Unbekannt" with "Letzten Termin erfassen"; tapping it records the TÜV
+- [ ] "Reifen" appears as an info row (last change, no status badge), or
+      "Reifen erfassen" without an entry; widget and Siri "Nächster Termin"
+      ignore it
 
 - [ ] Tapping a due date opens an expense with the matching category; after
       saving, the next due date moves on
