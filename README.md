@@ -109,6 +109,12 @@ self-hosted servers can be entered on the sign-in screen):
   Screen rectangular, circular and inline; vehicle chosen in the widget
   settings; data from `/stats` and `/reminders`, sign-in shared with the app
   through Keychain Sharing; links use `fuelstat://`
+- Widget "Fahrzeug im Auto" for CarPlay (iOS 26 shows small iPhone widgets on
+  the car's display, no CarPlay entitlement needed): the vehicle selected in
+  the app (shared through the Keychain) with its average consumption from
+  `/stats`; display only, no buttons or links. Not suggested on the Home
+  Screen. A CarPlay app with templates stays in #21 (needs Apple's CarPlay
+  entitlement)
 - Home Screen quick actions (long press on the icon): Tanken, Laden, vehicles
 - Welcome screen, sign-in with labelled fields, 2FA as six digit boxes
   (one-time-code autofill), own server under "Eigener Server"

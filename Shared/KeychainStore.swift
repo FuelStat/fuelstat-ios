@@ -10,6 +10,7 @@ enum KeychainStore {
     private static let service = "org.fuelstat.ios"
     private static let tokenAccount = "api-token"
     private static let refreshTokenAccount = "api-refresh-token"
+    private static let selectedVehicleAccount = "selected-vehicle"
     private static let serverAccount = "api-baseURL"
 
     /// The shared access group, or nil in builds without signing (e.g. CI), where only the app's own group exists.
@@ -24,6 +25,15 @@ enum KeychainStore {
     static func deleteToken() {
         delete(tokenAccount)
         delete(refreshTokenAccount)
+        delete(selectedVehicleAccount)
+    }
+
+    /// The vehicle chosen in the app's switcher, for widgets that show "the" vehicle (CarPlay). Not secret; the
+    /// Keychain is simply the only store app and widgets share without an App Group.
+    static func loadSelectedVehicle() -> String? { load(selectedVehicleAccount) }
+    static func saveSelectedVehicle(_ id: String?) {
+        guard id != loadSelectedVehicle() else { return }
+        if let id { save(id, as: selectedVehicleAccount) } else { delete(selectedVehicleAccount) }
     }
 
     /// Refresh token of the device session (FuelStat/fuelstat#117). Each one works exactly once; after a swap the

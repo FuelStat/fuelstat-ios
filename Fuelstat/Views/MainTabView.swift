@@ -128,9 +128,13 @@ private struct MainTabs: View {
             // Replan local reminders from the API's due dates at every start (loading them does that).
             if ReminderNotifications.isEnabled { _ = await store.allReminders() }
         }
-        .onChange(of: selectedID) { VehicleSelection.storedID = selectedID }
+        .onChange(of: selectedID) {
+            VehicleSelection.storedID = selectedID
+            shareSelection()
+        }
         .onChange(of: store.vehicles.map(\.id), initial: true) {
             QuickActions.update(for: store.vehicles, selectedID: store.resolvedSelection(selectedID))
+            shareSelection()
         }
         .onChange(of: router.pending, initial: true) { handleIntentRequest() }
         .onChange(of: store.hasLoaded) { handleIntentRequest() }
@@ -183,6 +187,15 @@ private struct MainTabs: View {
         } else {
             entry = selectedVehicle?.fuelType == .electric ? .charge : .fuel
         }
+    }
+
+    /// Tells the CarPlay widget which vehicle to show: the one selected in the app.
+    private func shareSelection() {
+        guard store.hasLoaded else { return }
+        let id = store.resolvedSelection(selectedID)
+        guard id != KeychainStore.loadSelectedVehicle() else { return }
+        KeychainStore.saveSelectedVehicle(id)
+        WidgetRefresh.reload()
     }
 
     private func manageVehicles() {

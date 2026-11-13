@@ -94,6 +94,13 @@ struct VehicleProvider: AppIntentTimelineProvider {
     }
 
     private func load(_ configuration: SelectVehicleIntent) async -> VehicleWidgetEntry {
+        await VehicleWidgetEntry.load(vehicleID: configuration.vehicle?.id)
+    }
+}
+
+extension VehicleWidgetEntry {
+    /// Loads a vehicle and its figures; without an id (or if it is gone) the first vehicle alphabetically.
+    static func load(vehicleID: String?) async -> VehicleWidgetEntry {
         guard KeychainStore.loadToken() != nil else {
             return VehicleWidgetEntry(date: .now, state: .signedOut)
         }
@@ -103,7 +110,7 @@ struct VehicleProvider: AppIntentTimelineProvider {
             let vehicles = try await SignedInAPI.call(api) { api, token in try await api.vehicles(token: token) }
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             let token = try await TokenStore.shared.accessToken(api: api)
-            let chosen = configuration.vehicle.flatMap { choice in vehicles.first { $0.id == choice.id } }
+            let chosen = vehicleID.flatMap { id in vehicles.first { $0.id == id } }
             guard let vehicle = chosen ?? vehicles.first else {
                 return VehicleWidgetEntry(date: .now, state: .noVehicle)
             }
