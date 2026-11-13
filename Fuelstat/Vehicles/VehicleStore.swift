@@ -168,6 +168,34 @@ final class VehicleStore {
         return created.warnings.compactMap(\.message)
     }
 
+    // MARK: - Fuel types (FuelStat/fuelstat#140)
+
+    /// Fuel types the server knows (`GET /fuels`), loaded once per session; nil on servers without them.
+    private(set) var fuelCatalog: FuelCatalog?
+
+    @discardableResult
+    func loadFuelCatalog() async -> FuelCatalog? {
+        if let fuelCatalog { return fuelCatalog }
+        fuelCatalog = try? await api.fuels()
+        return fuelCatalog
+    }
+
+    /// The vehicle's fuel types for fuelling or charging; empty when the server or the vehicle has none.
+    func fuelOptions(of vehicle: RemoteVehicle, charging: Bool) -> [FuelOption] {
+        guard let fuelCatalog else { return [] }
+        return FuelChoice.options(vehicleFuels: vehicle.fuels, catalog: fuelCatalog.fuels, charging: charging)
+    }
+
+    /// Whether the vehicle can be fuelled and/or charged: from its fuel types, otherwise from the drive type.
+    func entryModes(of vehicle: RemoteVehicle) -> (fuel: Bool, charge: Bool) {
+        if let fuelCatalog {
+            let modes = FuelChoice.modes(vehicleFuels: vehicle.fuels, catalog: fuelCatalog.fuels)
+            if modes.fuel || modes.charge { return modes }
+        }
+        let units = vehicle.fuelType.fillupUnits
+        return (units.contains { $0 != "kwh" }, units.contains("kwh"))
+    }
+
     // MARK: - Entry list, expenses, trips
 
     /// Expense categories from the API, kept for the session; `reload` asks again (e.g. after changing them).
@@ -332,9 +360,14 @@ final class VehicleStore {
     }
 
     /// Price per unit of the latest fill-up with this unit, as a default for the next one.
-    func lastPrice(of id: String, unit: String) async -> Double? {
-        guard let recent = try? await fillups(of: id, limit: 10) else { return nil }
-        return recent.first { $0.unit == unit && $0.amount > 0 }.flatMap { fillup in
+    /// With a fuel type only fill-ups of that type count, so a petrol fill-up never gets the LPG price.
+    func lastPrice(of id: String, unit: String, fuel: String? = nil) async -> Double? {
+        guard let recent = try? await fillups(of: id, limit: 20) else { return nil }
+        return recent.first { fillup in
+            guard fillup.unit == unit, fillup.amount > 0 else { return false }
+            guard let fuel, let other = fillup.fuel else { return true }
+            return other == fuel
+        }.flatMap { fillup in
             fillup.totalCostEur.map { $0 / fillup.amount }
         }
     }

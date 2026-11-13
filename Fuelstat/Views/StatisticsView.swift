@@ -19,9 +19,9 @@ struct StatisticsView: View {
                         VStack(alignment: .leading, spacing: Theme.Spacing.cardGap) {
                             VehicleSwitcher(store: store, selectedID: $selectedID, onManage: onManageVehicles)
                             KeyFigureTiles(vehicle: vehicle, stats: store.stats[vehicle.id],
-                                           odometer: store.currentOdometer(of: vehicle))
+                                           odometer: store.currentOdometer(of: vehicle), catalog: store.fuelCatalog)
                             ConsumptionChartCard(stats: store.stats[vehicle.id], fuelType: vehicle.fuelType,
-                                                 range: $range)
+                                                 range: $range, catalog: store.fuelCatalog)
                         }
                         .padding(.horizontal, Theme.Spacing.screen)
                         .padding(.bottom, Theme.Spacing.xl)

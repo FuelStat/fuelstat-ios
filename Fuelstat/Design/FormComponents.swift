@@ -101,14 +101,15 @@ struct LabeledTextField<Value: Hashable>: View {
 /// The type picker at the top of the quick-entry sheet: Tanken, Laden, Ausgabe, Fahrt, Kilometer.
 /// Fuel and charging are only offered when the vehicle can do them.
 struct EntryTypeChips: View {
-    let fuelType: RemoteFuelType?
+    let store: VehicleStore
+    let vehicle: RemoteVehicle?
     @Binding var selection: EntryKind
 
     private var kinds: [EntryKind] {
-        let units = fuelType?.fillupUnits ?? ["l"]
+        let modes = vehicle.map { store.entryModes(of: $0) } ?? (fuel: true, charge: false)
         var kinds: [EntryKind] = []
-        if units.contains(where: { $0 != "kwh" }) { kinds.append(.fuel) }
-        if units.contains("kwh") { kinds.append(.charge) }
+        if modes.fuel { kinds.append(.fuel) }
+        if modes.charge { kinds.append(.charge) }
         return kinds + [.expense, .trip, .odometer]
     }
 

@@ -60,7 +60,7 @@ struct TripFormView: View {
                     if editingID == nil {
                         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
                             if let kindSelection {
-                                EntryTypeChips(fuelType: vehicle?.fuelType, selection: kindSelection)
+                                EntryTypeChips(store: store, vehicle: vehicle, selection: kindSelection)
                             }
                             EntryVehiclePicker(store: store, vehicleID: $vehicleID)
                         }

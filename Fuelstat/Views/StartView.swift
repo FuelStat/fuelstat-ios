@@ -49,7 +49,7 @@ struct StartView: View {
                 .accessibilityHint(Text("Öffnet die Fahrzeugseite"))
 
                 KeyFigureTiles(vehicle: vehicle, stats: store.stats[vehicle.id],
-                               odometer: store.currentOdometer(of: vehicle))
+                               odometer: store.currentOdometer(of: vehicle), catalog: store.fuelCatalog)
 
                 RemindersCard(reminders: reminders) { path.append(.reminders(vehicle.id)) }
 

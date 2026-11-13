@@ -69,7 +69,8 @@ empty state there and the real search on the hosted service.
   trip export one run on Plus (the operator sets the plan).
 - One combustion vehicle with at least three full fill-ups, so consumption
   and the chart have values; one electric or plug-in hybrid vehicle for
-  charging and the filter chips.
+  charging and the filter chips; one vehicle with two fuel types (e.g. Super
+  E5 + Autogas) with full fill-ups of both.
 
 ## Checklist
 
@@ -170,6 +171,14 @@ truth, so figures must match the web app exactly.
 - [ ] Odometer lower than the previous entry: the API's warning is shown
 - [ ] Decimal comma input (e.g. `45,67`) is accepted
 - [ ] Charging session on the electric or plug-in vehicle, in kWh
+- [ ] Vehicle with several fuel types (web app: Antriebsart → Erweitert, e.g.
+      Super E5 + Autogas): the sheet shows "Sorte" chips, the default type is
+      preselected; switching the type prefills the price of the last fill-up
+      **of that type**; the saved entry has that type in the web app; for
+      Super E5 + Erdgas the unit switches between L and kg
+- [ ] Same vehicle: Start/Statistik list consumption and price per energy
+      (Benzin, Autogas), the chart has one card per energy, an energy fuelled
+      only on the side says "nur nebenbei getankt"
 - [ ] Entry without odometer ("Kilometerstand (optional)") is saved
 - [ ] Station from "In der Nähe" is taken over into the entry
       **(hosted only)**

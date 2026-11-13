@@ -171,6 +171,7 @@ struct EntryDetailView: View {
         if let vehicle { add("Fahrzeug", vehicle.name) }
         switch item.kind {
         case .fuel, .charge:
+            add("Sorte", store.fuelCatalog?.fuel(item.fuel)?.name)
             add(item.kind == .charge ? "Ladestation" : "Tankstelle", item.place)
             add(item.kind == .charge ? "Geladen" : "Getankt",
                 item.amount.map { "\(Fmt.number($0, digits: 2)) \(item.unitLabel)" })

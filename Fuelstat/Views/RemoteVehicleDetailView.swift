@@ -70,7 +70,7 @@ struct RemoteVehicleDetailView: View {
                         RecentEntriesCard(fillups: fillups, fuelType: vehicle.fuelType)
                     case .statistics:
                         ConsumptionChartCard(stats: store.stats[vehicle.id], fuelType: vehicle.fuelType,
-                                             range: $chartRange)
+                                             range: $chartRange, catalog: store.fuelCatalog)
                     case .data:
                         MasterDataCards(vehicle: vehicle, odometer: store.currentOdometer(of: vehicle))
                         NavigationLink(value: Route.sharing(vehicle.id)) {
@@ -204,7 +204,8 @@ struct RemoteVehicleDetailView: View {
 
     @ViewBuilder
     private func overview(_ vehicle: RemoteVehicle) -> some View {
-        KeyFigureTiles(vehicle: vehicle, stats: store.stats[vehicle.id], odometer: store.currentOdometer(of: vehicle))
+        KeyFigureTiles(vehicle: vehicle, stats: store.stats[vehicle.id], odometer: store.currentOdometer(of: vehicle),
+                       catalog: store.fuelCatalog)
         if vehicle.role.canRecord {
             PrimaryButton(title: vehicle.fuelType == .electric ? "Laden erfassen" : "Tanken erfassen",
                           systemImage: vehicle.fuelType == .electric ? "bolt.fill" : "fuelpump.fill") {

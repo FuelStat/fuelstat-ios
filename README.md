@@ -140,6 +140,11 @@ self-hosted servers can be entered on the sign-in screen):
   `recommended_version` Profil shows a hint
 - Vehicle page with photo, key figures, due dates, entries, chart and master data
 - Create, edit and delete vehicles; plan limits from the API are shown as a message
+- Several fuel types per vehicle (FuelStat/fuelstat#140, catalog from
+  `GET /fuels`): the entry sheet offers the vehicle's types (e.g. Super E5 and
+  Autogas) and sends `fuel`; the price is prefilled from the last fill-up of
+  that type; the station search uses the type's Tankerkönig fuel; key figures
+  and charts per energy (`energies` in `/stats`, side energies marked)
 - Record fill-ups and charging sessions: last vehicle and last price prefilled,
   any two of amount, price per unit and total give the third, odometer warnings
   from the API are shown

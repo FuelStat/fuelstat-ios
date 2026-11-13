@@ -18,6 +18,8 @@ struct FillupEntryView: View {
 
     @State private var vehicleID: String
     @State private var unit: String
+    /// Fuel type (FuelStat/fuelstat#140); nil while the vehicle's fuel types are unknown (older server).
+    @State private var fuel: String?
     @State private var filledAt = Date.now
     @State private var odometerKm: Int?
     @State private var values = FillupAmounts()
@@ -64,8 +66,17 @@ struct FillupEntryView: View {
             _isFull = State(initialValue: editing.isFull ?? true)
             _skipPrevious = State(initialValue: editing.skipPrevious ?? false)
             _station = State(initialValue: editing.place ?? "")
+            _fuel = State(initialValue: editing.fuel)
         }
     }
+
+    /// Fuel types the vehicle offers for the current mode (fuelling or charging).
+    private var fuelOptions: [FuelOption] {
+        guard let vehicle else { return [] }
+        return store.fuelOptions(of: vehicle, charging: isCharging)
+    }
+
+    private var selectedFuel: FuelOption? { fuelOptions.first { $0.key == fuel } }
 
     private var title: LocalizedStringKey {
         if editing != nil { return "Eintrag bearbeiten" }
@@ -84,7 +95,11 @@ struct FillupEntryView: View {
 
     private var isCharging: Bool { unit == "kwh" }
 
-    private var stationSearchType: String? { vehicle?.fuelType.stationSearchType(unit: unit) }
+    /// Tankerkönig type of the chosen fuel (none for LPG, CNG …); the drive type only on older servers.
+    private var stationSearchType: String? {
+        if let selectedFuel { return selectedFuel.tankerkoenig }
+        return vehicle?.fuelType.stationSearchType(unit: unit)
+    }
 
     /// Rules as in the web app: a positive amount, a total (0 for free charging), a plausible date.
     private var validationMessage: String? {
@@ -116,6 +131,7 @@ struct FillupEntryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.l) {
                     typeAndVehicle
+                    fuelChips
                     stationSection
                     amountSection
                     fullChips
@@ -151,8 +167,11 @@ struct FillupEntryView: View {
                 }
             }
             .interactiveDismissDisabled(isSaving || (editing == nil && values.amount != nil))
-            .task(id: "\(vehicleID)-\(unit)") { await vehicleChanged() }
-            .onChange(of: vehicleID) { onVehicleChange?(vehicleID) }
+            .task(id: "\(vehicleID)-\(unit)-\(fuel ?? "")") { await vehicleChanged() }
+            .onChange(of: vehicleID) {
+                fuel = nil
+                onVehicleChange?(vehicleID)
+            }
             .onChange(of: kindSelection?.wrappedValue) { kindChanged() }
             .onChange(of: unit) {
                 // Keep the type chips in step when the vehicle forces another unit (e.g. an electric car).
@@ -202,10 +221,10 @@ struct FillupEntryView: View {
     private var newEntryHeader: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             if let kindSelection {
-                EntryTypeChips(fuelType: vehicle?.fuelType, selection: kindSelection)
-            } else if let vehicle, vehicle.fuelType.fillupUnits.count > 1 {
+                EntryTypeChips(store: store, vehicle: vehicle, selection: kindSelection)
+            } else if let vehicle, store.entryModes(of: vehicle) == (true, true) {
                 HStack(spacing: Theme.Spacing.xs) {
-                    typeChip("Tanken", systemImage: "fuelpump.fill", unit: vehicle.fuelType.fillupUnits[0])
+                    typeChip("Tanken", systemImage: "fuelpump.fill", unit: fuellingUnit(of: vehicle))
                     typeChip("Laden", systemImage: "bolt.fill", unit: "kwh")
                 }
             }
@@ -222,6 +241,33 @@ struct FillupEntryView: View {
                     .foregroundStyle(Theme.brandDeep)
             }
         }
+    }
+
+    /// Fuel types of the vehicle, e.g. Super E5 and Autogas; shown when there is more than one to choose from.
+    @ViewBuilder
+    private var fuelChips: some View {
+        if fuelOptions.count > 1 {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                fieldLabel("Sorte")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        ForEach(fuelOptions) { option in
+                            FilterChip(verbatim: option.name, isSelected: option.key == fuel) {
+                                fuel = option.key
+                            }
+                        }
+                    }
+                }
+                .scrollClipDisabled()
+            }
+        }
+    }
+
+    /// Unit of fuelling (not charging) for the vehicle: from its fuel types, otherwise from the drive type.
+    private func fuellingUnit(of vehicle: RemoteVehicle) -> String {
+        let options = store.fuelOptions(of: vehicle, charging: false)
+        return FuelChoice.preselected(options, defaultFuel: vehicle.defaultFuel)?.unit
+            ?? vehicle.fuelType.fillupUnits.first { $0 != "kwh" } ?? "l"
     }
 
     private func typeChip(_ title: LocalizedStringKey, systemImage: String, unit value: String) -> some View {
@@ -482,10 +528,35 @@ struct FillupEntryView: View {
     /// New vehicle or fuelling/charging: pick a fitting unit, prefill the last price, load stations.
     private func vehicleChanged() async {
         guard let vehicle else { return }
-        let units = vehicle.fuelType.fillupUnits
-        if !units.contains(unit) {
-            unit = units[0]
+        await store.loadFuelCatalog()
+        // Fuelling or charging must be possible with this vehicle.
+        let modes = store.entryModes(of: vehicle)
+        if isCharging, !modes.charge {
+            unit = fuellingUnit(of: vehicle)
             return // runs again for the new unit
+        }
+        if !isCharging, !modes.fuel {
+            unit = "kwh"
+            return
+        }
+        let options = store.fuelOptions(of: vehicle, charging: isCharging)
+        if options.isEmpty {
+            // Older server without fuel types: the units of the drive type, as before.
+            fuel = nil
+            let units = vehicle.fuelType.fillupUnits
+            if !units.contains(unit) {
+                unit = units[0]
+                return
+            }
+        } else {
+            if !options.contains(where: { $0.key == fuel }) {
+                fuel = FuelChoice.preselected(options, defaultFuel: vehicle.defaultFuel)?.key
+                return // runs again for the new fuel
+            }
+            if let selectedFuel, selectedFuel.unit != unit {
+                unit = selectedFuel.unit
+                return // e.g. CNG is in kg, petrol in litres
+            }
         }
         // Changing an entry keeps its values; only the recently used stations are offered.
         if editing != nil {
@@ -501,7 +572,7 @@ struct FillupEntryView: View {
         async let stationsLoaded: Void = searchNearby(asking: false)
         async let recentLoaded: Void = loadRecentStations(vehicle.id)
         let before = values
-        let price = await store.lastPrice(of: vehicle.id, unit: unit)
+        let price = await store.lastPrice(of: vehicle.id, unit: unit, fuel: selectedFuel?.key)
         // Only if the user has not typed a price in the meantime.
         if let price, values == before, !values.entered.contains(.pricePerUnit) {
             values.set(.pricePerUnit, to: (price * 1000).rounded() / 1000)
@@ -542,10 +613,11 @@ struct FillupEntryView: View {
 
     /// The type chips switched between fuelling and charging: use the matching unit of the vehicle.
     private func kindChanged() {
-        guard let kind = kindSelection?.wrappedValue, let units = vehicle?.fuelType.fillupUnits else { return }
+        guard let kind = kindSelection?.wrappedValue, let vehicle else { return }
+        let modes = store.entryModes(of: vehicle)
         switch kind {
-        case .charge where units.contains("kwh"): unit = "kwh"
-        case .fuel: unit = units.first { $0 != "kwh" } ?? unit
+        case .charge where modes.charge: unit = "kwh"
+        case .fuel where modes.fuel: unit = fuellingUnit(of: vehicle)
         default: break
         }
     }
@@ -554,7 +626,8 @@ struct FillupEntryView: View {
         let trimmed = station.trimmingCharacters(in: .whitespaces)
         let patch = FillupPatch(unit: unit, amount: amount, totalCostEur: total, odometerKm: odometerKm,
                                 station: trimmed.isEmpty ? nil : trimmed, filledAt: filledAt, isFull: isFull,
-                                skipPrevious: skipPrevious)
+                                skipPrevious: skipPrevious,
+                                fuel: selectedFuel != nil && fuel != editing.fuel ? fuel : nil)
         errorMessage = nil
         isSaving = true
         Task {
@@ -591,7 +664,8 @@ struct FillupEntryView: View {
             station: trimmed.isEmpty ? nil : trimmed,
             filledAt: filledAt,
             isFull: isFull,
-            skipPrevious: skipPrevious
+            skipPrevious: skipPrevious,
+            fuel: selectedFuel?.key
         )
         errorMessage = nil
         isSaving = true

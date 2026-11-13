@@ -338,6 +338,10 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
     let batteryCapacity: Double?
     let tireSizeSummer: String?
     let tireSizeWinter: String?
+    /// Fuel types of the vehicle (FuelStat/fuelstat#140), e.g. `["super_e5", "lpg"]`; empty on older servers.
+    let fuels: [String]
+    /// The fuel type preselected for new entries.
+    let defaultFuel: String?
     /// The signed-in user's role (`owner`, `editor`, `viewer`); servers without sharing send none.
     let role: VehicleRole
     /// Name of the owner, only for vehicles shared with the user.
@@ -347,7 +351,8 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
     var isShared: Bool { role != .owner }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, brand, model, year, vin, role
+        case id, name, brand, model, year, vin, role, fuels
+        case defaultFuel = "default_fuel"
         case ownerName = "owner_name"
         case fuelType = "fuel_type"
         case imageURL = "image_url"
@@ -377,6 +382,8 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
         batteryCapacity = c.number(.batteryCapacity)
         tireSizeSummer = c.text(.tireSizeSummer)
         tireSizeWinter = c.text(.tireSizeWinter)
+        fuels = (try? c.decodeIfPresent([String].self, forKey: .fuels)) ?? []
+        defaultFuel = c.text(.defaultFuel)
         role = c.text(.role).flatMap(VehicleRole.init(rawValue:)) ?? .owner
         ownerName = c.text(.ownerName)
     }
@@ -469,17 +476,44 @@ struct VehicleStats: Decodable {
     let trend: Trend?
     /// Full-to-full segments with the consumption the API calculated for each.
     let segments: [Segment]
+    /// Figures per energy (FuelStat/fuelstat#140), e.g. petrol and LPG of a bivalent car; empty on older servers.
+    let energies: [String: EnergyFigures]
+
+    struct EnergyFigures: Decodable {
+        let unit: String
+        let averageConsumption: Double?
+        let averagePrice: Double?
+        /// Fuelled only on the side (less than 10 % of the energy costs): its consumption says little and is
+        /// not shown as a figure.
+        let minor: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case unit, minor
+            case averageConsumption = "avgConsumption"
+            case averagePrice = "avgPrice"
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            unit = c.text(.unit) ?? "l"
+            averageConsumption = c.number(.averageConsumption)
+            averagePrice = c.number(.averagePrice)
+            minor = (try? c.decodeIfPresent(Bool.self, forKey: .minor)) ?? false
+        }
+    }
 
     /// Consumption between two full fill-ups, per 100 km in the segment's unit.
     struct Segment: Decodable, Identifiable {
         let id: String
         let date: Date
         let unit: String
+        /// Energy of the segment (`petrol`, `lpg`, `electricity` …, FuelStat/fuelstat#140); older servers send none.
+        let energy: String?
         let km: Double?
         let per100Km: Double
 
         enum CodingKeys: String, CodingKey {
-            case id = "full_id", date = "full_at", unit, km
+            case id = "full_id", date = "full_at", unit, km, energy
             case per100Km = "l_per_100km"
         }
 
@@ -491,13 +525,14 @@ struct VehicleStats: Decodable {
             id = c.text(.id) ?? UUID().uuidString
             self.date = date
             unit = c.text(.unit) ?? "l"
+            energy = c.text(.energy)
             km = c.number(.km)
             per100Km = value
         }
     }
 
     enum CodingKeys: String, CodingKey {
-        case currentOdo, avgConsumption, avgPricePerLiter, missingOdometer, trend, segments
+        case currentOdo, avgConsumption, avgPricePerLiter, missingOdometer, trend, segments, energies
     }
 
     enum TrendKeys: String, CodingKey { case current, diff }
@@ -521,6 +556,7 @@ struct VehicleStats: Decodable {
             trend = nil
         }
         segments = ((try? c.decodeIfPresent([LossySegment].self, forKey: .segments)) ?? []).compactMap(\.value)
+        energies = (try? c.decodeIfPresent([String: EnergyFigures].self, forKey: .energies)) ?? [:]
     }
 }
 
@@ -535,6 +571,8 @@ struct RemoteFillup: Decodable, Identifiable {
     let totalCostEur: Double?
     let station: String?
     let isFull: Bool
+    /// Fuel type (FuelStat/fuelstat#140); nil on older servers.
+    let fuel: String?
 
     var isCharging: Bool { unit == "kwh" }
 
@@ -547,7 +585,7 @@ struct RemoteFillup: Decodable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, amount, unit, station
+        case id, amount, unit, station, fuel
         case filledAt = "filled_at"
         case odometerKm = "odometer_km"
         case totalCostEur = "total_cost_eur"
@@ -564,6 +602,7 @@ struct RemoteFillup: Decodable, Identifiable {
         totalCostEur = c.number(.totalCostEur)
         station = c.text(.station)
         isFull = (try? c.decode(Bool.self, forKey: .isFull)) ?? true
+        fuel = c.text(.fuel)
     }
 
     private static func parseDate(_ text: String) -> Date? { APIDate.parse(text) }
@@ -697,9 +736,12 @@ struct FillupInput: Encodable {
     var isFull: Bool
     /// The previous fill-up was not recorded: consumption is not calculated across the gap.
     var skipPrevious: Bool
+    /// Fuel type (FuelStat/fuelstat#140). Without it the API takes the vehicle's default for the unit, which is
+    /// wrong for e.g. LPG on a petrol/LPG car – so the app sends it whenever it knows the vehicle's fuel types.
+    var fuel: String? = nil
 
     enum CodingKeys: String, CodingKey {
-        case vehicleId, unit, amount, totalCostEur, odometerKm, station, filledAt, isFull, skipPrevious
+        case vehicleId, unit, amount, totalCostEur, odometerKm, station, filledAt, isFull, skipPrevious, fuel
     }
 
     func encode(to encoder: Encoder) throws {
@@ -713,6 +755,7 @@ struct FillupInput: Encodable {
         try c.encode(ISO8601DateFormatter().string(from: filledAt), forKey: .filledAt)
         try c.encode(isFull, forKey: .isFull)
         try c.encode(skipPrevious, forKey: .skipPrevious)
+        try c.encodeIfPresent(fuel, forKey: .fuel)
     }
 }
 
@@ -803,4 +846,45 @@ struct RemoteStation: Decodable, Identifiable {
 
 struct StationsResponse: Decodable {
     let stations: [RemoteStation]
+}
+
+// MARK: - Fuel types
+
+/// Response of `GET /fuels` (FuelStat/fuelstat#140): the fuel types and energies the server knows.
+struct FuelCatalog: Decodable {
+    struct Energy: Decodable {
+        let key: String
+        let name: String
+        let unit: String
+    }
+
+    private struct Fuel: Decodable {
+        let key: String
+        let name: String
+        let energy: String
+        let unit: String
+        let tankerkoenig: String?
+    }
+
+    let fuels: [FuelOption]
+    let energies: [Energy]
+
+    enum CodingKeys: String, CodingKey { case fuels, energies }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fuels = try c.decode([Lossy<Fuel>].self, forKey: .fuels).compactMap(\.value).map {
+            FuelOption(key: $0.key, name: $0.name, energy: $0.energy, unit: $0.unit, tankerkoenig: $0.tankerkoenig)
+        }
+        energies = (try? c.decodeIfPresent([Lossy<Energy>].self, forKey: .energies))?.compactMap(\.value) ?? []
+    }
+
+    func fuel(_ key: String?) -> FuelOption? {
+        guard let key else { return nil }
+        return fuels.first { $0.key == key }
+    }
+
+    func energyName(_ key: String) -> String {
+        energies.first { $0.key == key }?.name ?? key
+    }
 }

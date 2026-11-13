@@ -335,6 +335,11 @@ struct APIClient {
         try await send("fillups/\(id)", method: "PATCH", body: OdometerPatch(odometerKm: km), token: token)
     }
 
+    /// The fuel types and energies the server knows (no sign-in needed).
+    func fuels() async throws -> FuelCatalog {
+        try await send("fuels", token: nil)
+    }
+
     // MARK: - Entry list
 
     /// One page of the entry list: fill-ups, charging sessions, expenses, odometer notes and trips, newest first.
