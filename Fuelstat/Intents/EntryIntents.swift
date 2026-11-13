@@ -135,8 +135,15 @@ enum EntryRecorder {
 
     static func save(vehicle: VehicleEntity, charging: Bool, amount: Double, total: Double, odometer: Int?,
                      isFull: Bool) async throws -> String {
+        // The vehicle's fuel types decide (FuelStat/fuelstat#140): a hybrid with "Strom" can be charged even if
+        // its drive type alone would not say so. Without the catalog (older server) the drive type decides.
+        let catalog = try? await APIClient.configured.fuels()
+        let options = FuelChoice.options(vehicleFuels: vehicle.fuels, catalog: catalog?.fuels ?? [],
+                                         charging: charging)
+        let fuel = FuelChoice.preselected(options, defaultFuel: vehicle.defaultFuel)
         let units = vehicle.fuelType.fillupUnits
-        guard let unit = charging ? units.first(where: { $0 == "kwh" }) : units.first(where: { $0 != "kwh" }) else {
+        guard let unit = fuel?.unit
+            ?? (charging ? units.first(where: { $0 == "kwh" }) : units.first(where: { $0 != "kwh" })) else {
             throw IntentError.wrongEntryKind(vehicle: vehicle.name, useCharging: !charging)
         }
         guard amount.isFinite, amount > 0 else { throw IntentError.invalidAmount }
@@ -144,7 +151,7 @@ enum EntryRecorder {
 
         let input = FillupInput(vehicleId: vehicle.id, unit: unit, amount: amount, totalCostEur: total,
                                 odometerKm: odometer, station: nil, filledAt: .now, isFull: isFull,
-                                skipPrevious: false)
+                                skipPrevious: false, fuel: fuel?.key)
         let created = try await IntentAPI.call { try await $0.createFillup(input, token: $1) }
         VehicleStore.storedLastVehicleID = vehicle.id
         await IntentRouter.shared.entrySaved()

@@ -136,7 +136,8 @@ struct EntriesView: View {
         }
         .listStyle(.plain)
         .themedBackground()
-        .searchable(text: $search, prompt: Text("Ort, Kategorie oder Notiz suchen"))
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: Text("Ort, Kategorie oder Notiz suchen"))
         .overlay {
             if !isLoading, items.isEmpty, errorMessage == nil {
                 if search.isEmpty && filter == nil {

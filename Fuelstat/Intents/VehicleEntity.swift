@@ -19,10 +19,15 @@ struct VehicleEntity: AppEntity, Identifiable {
     var fuelTypeName: String
 
     let fuelType: RemoteFuelType
+    /// Fuel types of the vehicle (FuelStat/fuelstat#140), e.g. `["super_e5", "electricity"]`.
+    let fuels: [String]
+    let defaultFuel: String?
 
     init(_ vehicle: RemoteVehicle) {
         id = vehicle.id
         fuelType = vehicle.fuelType
+        fuels = vehicle.fuels
+        defaultFuel = vehicle.defaultFuel
         name = vehicle.name
         licensePlate = vehicle.licensePlate
         fuelTypeName = vehicle.fuelType.label

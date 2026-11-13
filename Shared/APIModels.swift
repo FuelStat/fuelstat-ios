@@ -457,6 +457,15 @@ struct VehicleImagePatch: Encodable {
 struct RemoteMedia: Decodable {
     let id: String
     let url: String
+
+    /// File name behind the (signed or internal) address, e.g. `426e….webp`.
+    var fileName: String? { Self.fileName(of: url) }
+
+    static func fileName(of address: String?) -> String? {
+        guard let address, let path = address.split(separator: "?").first,
+              let name = path.split(separator: "/").last, !name.isEmpty else { return nil }
+        return String(name)
+    }
 }
 
 /// Key figures from `GET /api/v1/vehicles/{id}/stats`, in the unit of the vehicle (L, kWh or kg).

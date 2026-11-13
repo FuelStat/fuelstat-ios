@@ -62,8 +62,14 @@ struct StartView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .refreshable {
-            await store.load()
-            await load(vehicle.id)
+            // Reloading the vehicles redraws this screen, which cancels the refresh task; the loads therefore
+            // run in their own task, so the latest entries and due dates arrive all the same.
+            let id = vehicle.id
+            await Task {
+                async let vehicles: Void = store.load()
+                async let entries: Void = load(id)
+                _ = await (vehicles, entries)
+            }.value
         }
         .task(id: "\(vehicle.id)-\(refresh)") { await load(vehicle.id) }
         .sheet(isPresented: $showingStations) {

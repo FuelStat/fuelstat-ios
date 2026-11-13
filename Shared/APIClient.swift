@@ -488,6 +488,26 @@ struct APIClient {
         return response.stations
     }
 
+    /// Photos of a vehicle (all pages).
+    func vehicleMedia(vehicleID: String, token: String) async throws -> [RemoteMedia] {
+        try await allPages("vehicles/\(vehicleID)/media", token: token)
+    }
+
+    /// Deletes a vehicle photo including its file.
+    func deleteVehicleMedia(vehicleID: String, mediaID: String, token: String) async throws {
+        let _: EmptyResponse = try await send("vehicles/\(vehicleID)/media/\(mediaID)", method: "DELETE", token: token)
+    }
+
+    /// The account's own images (profile pictures, all pages).
+    func media(token: String) async throws -> [RemoteMedia] {
+        try await allPages("media", token: token)
+    }
+
+    /// Deletes an own image including its file.
+    func deleteMedia(id: String, token: String) async throws {
+        let _: EmptyResponse = try await send("media/\(id)", method: "DELETE", token: token)
+    }
+
     /// Uploads a JPEG as vehicle photo. The server scales it down, strips metadata and stores it as WebP.
     func uploadVehicleImage(vehicleID: String, jpeg: Data, token: String) async throws -> RemoteMedia {
         try await upload(jpeg: jpeg, to: "vehicles/\(vehicleID)/media/upload", token: token)

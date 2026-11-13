@@ -62,7 +62,11 @@ private struct WelcomeView: View {
                 Button("Impressum") { webPage = .imprint }
                 Text("·").accessibilityHidden(true)
                 Button("Datenschutz") { webPage = .privacy }
+                Text("·").accessibilityHidden(true)
+                Button("Nutzungsbedingungen") { webPage = .terms }
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .font(.footnote)
             .foregroundStyle(.white.opacity(0.75))
         }

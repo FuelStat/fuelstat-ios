@@ -38,6 +38,8 @@ struct FillupEntryView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var warnings: [String] = []
+    /// The fill-up just saved with an odometer warning; "Korrigieren" deletes it and keeps the form open.
+    @State private var savedWithWarning: String?
 
     @FocusState private var focusedField: Field?
 
@@ -188,14 +190,16 @@ struct FillupEntryView: View {
             }
             .alert("Gespeichert, bitte prüfen", isPresented: Binding(
                 get: { !warnings.isEmpty },
-                set: { shown in
-                    if !shown {
-                        warnings = []
-                        dismiss()
-                    }
-                }
+                set: { if !$0 { warnings = [] } }
             )) {
-                Button("OK") {}
+                if savedWithWarning != nil {
+                    // The API saves implausible readings (e.g. after a new speedometer) and only warns. A typo
+                    // would otherwise count as the vehicle's odometer, so offer to take the entry back.
+                    Button("Kilometerstand korrigieren") { takeBack() }
+                    Button("So speichern", role: .cancel) { dismiss() }
+                } else {
+                    Button("OK") { dismiss() }
+                }
             } message: {
                 Text(warnings.joined(separator: "\n"))
             }
@@ -611,6 +615,22 @@ struct FillupEntryView: View {
             .map { $0 }
     }
 
+    /// Deletes the fill-up just saved with a warning, so the user can fix the odometer and save again.
+    private func takeBack() {
+        guard let id = savedWithWarning else { return }
+        savedWithWarning = nil
+        isSaving = true
+        Task {
+            defer { isSaving = false }
+            do {
+                try await store.deleteFillup(id, of: vehicleID)
+                focusedField = .odometer
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     /// The type chips switched between fuelling and charging: use the matching unit of the vehicle.
     private func kindChanged() {
         guard let kind = kindSelection?.wrappedValue, let vehicle else { return }
@@ -672,13 +692,14 @@ struct FillupEntryView: View {
         Task {
             defer { isSaving = false }
             do {
-                let messages = try await store.addFillup(input)
-                if messages.isEmpty {
+                let saved = try await store.addFillup(input)
+                if saved.warnings.isEmpty {
                     Haptics.success()
                     dismiss()
                 } else {
                     Haptics.warning()
-                    warnings = messages
+                    savedWithWarning = saved.id
+                    warnings = saved.warnings
                 }
             } catch {
                 errorMessage = error.localizedDescription

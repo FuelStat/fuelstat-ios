@@ -85,8 +85,11 @@ truth, so figures must match the web app exactly.
 - [ ] Wrong password: error message from the API, the app stays on the
       sign-in screen
 - [ ] Sign-in with e-mail and password, without 2FA
-- [ ] Sign-in with 2FA: six digit boxes, one-time-code autofill, wrong code
-      shows an error and allows another try, correct code signs in
+- [ ] Sign-in with 2FA: six digit boxes, one-time-code autofill, "Einfügen"
+      takes a copied code, wrong code shows an error and allows another try,
+      correct code signs in. (Password managers cannot offer the account or
+      the code automatically: that needs Associated Domains and the paid
+      developer program, #39)
 - [ ] "Eigener Server": invalid address is rejected with a message; valid
       address signs in; "Standardserver verwenden" goes back to the hosted
       service
@@ -155,7 +158,9 @@ truth, so figures must match the web app exactly.
 - [ ] Add a photo with "Foto aufnehmen" and with "Foto auswählen"; it shows
       on the vehicle page, on Start and in the web app
 - [ ] Replace the photo; the new one is shown, not the cached old one
-- [ ] "Foto entfernen" removes it everywhere
+- [ ] "Foto entfernen" removes it everywhere; the old photo's address (open it
+      in a browser before removing) answers 404 afterwards. Same when the
+      photo is replaced, and for the profile picture
 - [ ] Next day (signed image URLs have changed): photos still show without
       a visible reload; in flight mode the cached photo still shows
 
@@ -168,7 +173,9 @@ truth, so figures must match the web app exactly.
       is calculated ("berechnet"); the saved entry matches the web app
 - [ ] Partial fill-up ("Teilbetankung") and a forgotten previous entry
       ("Letzten Eintrag vergessen") are saved with those flags
-- [ ] Odometer lower than the previous entry: the API's warning is shown
+- [ ] Odometer lower than the previous entry: the API's warning is shown;
+      "Kilometerstand korrigieren" takes the entry back and keeps the form
+      open, "So speichern" keeps it
 - [ ] Decimal comma input (e.g. `45,67`) is accepted
 - [ ] Charging session on the electric or plug-in vehicle, in kWh
 - [ ] Vehicle with several fuel types (web app: Antriebsart → Erweitert, e.g.
@@ -246,8 +253,9 @@ truth, so figures must match the web app exactly.
 
 ### 8. Statistik, Termine and reminders
 
-- [ ] Key figures (Ø Verbrauch, Kosten pro km, Gesamtkosten, Erfasste
-      Strecke) equal the web app's values for the same vehicle
+- [ ] Key figures (Ø Verbrauch, Zuletzt with trend arrow, Ø Preis) equal the
+      web app's values for the same vehicle. Costs per km and other cost
+      figures follow with #6 (0.4.0)
 - [ ] Chart "Verbrauch je Tankfüllung" shows one point per full fill-up;
       "Keine Werte in diesem Zeitraum." when there are none
 - [ ] Due dates (`/reminders`) on Start and on the vehicle page match the web
