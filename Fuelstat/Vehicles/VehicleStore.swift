@@ -136,18 +136,199 @@ final class VehicleStore {
 
     /// Due dates, most urgent first: overdue, soon, then by days left.
     func reminders(of id: String) async throws -> [RemoteReminder] {
-        RemoteReminder.byUrgency(try await auth.call { try await $0.reminders(vehicleID: id, token: $1) })
+        let list = RemoteReminder.byUrgency(try await auth.call { try await $0.reminders(vehicleID: id, token: $1) })
+        // Every load replans the local notifications of this vehicle, so they follow the API's dates.
+        if let vehicle = vehicle(id) { await ReminderNotifications.schedule(list, for: vehicle) }
+        return list
+    }
+
+    /// Due dates of all vehicles, most urgent first. Vehicles whose dates fail to load are left out.
+    func allReminders() async -> [(vehicle: RemoteVehicle, reminder: RemoteReminder)] {
+        var all: [(vehicle: RemoteVehicle, reminder: RemoteReminder)] = []
+        for vehicle in vehicles {
+            guard let list = try? await reminders(of: vehicle.id) else { continue }
+            all += list.map { (vehicle, $0) }
+        }
+        // Stable sort by urgency across vehicles.
+        return all.enumerated().sorted { lhs, rhs in
+            let l = RemoteReminder.urgencyKey(lhs.element.reminder), r = RemoteReminder.urgencyKey(rhs.element.reminder)
+            return l == r ? lhs.offset < rhs.offset : l < r
+        }.map(\.element)
     }
 
     /// Saves a fill-up and refreshes the vehicle's key figures. Returns the API's odometer warnings.
     func addFillup(_ input: FillupInput) async throws -> [String] {
         let created = try await auth.call { try await $0.createFillup(input, token: $1) }
+        entryChanges += 1
         WidgetRefresh.reload()
         UserDefaults.standard.set(input.vehicleId, forKey: Self.lastVehicleKey)
         if let figures = try? await auth.call({ try await $0.stats(vehicleID: input.vehicleId, token: $1) }) {
             stats[input.vehicleId] = figures
         }
         return created.warnings.compactMap(\.message)
+    }
+
+    // MARK: - Entry list, expenses, trips
+
+    /// Expense categories from the API, kept for the session; `reload` asks again (e.g. after changing them).
+    private(set) var categories: CategoriesResponse?
+
+    @discardableResult
+    func loadCategories(reload: Bool = false) async throws -> CategoriesResponse {
+        if let categories, !reload { return categories }
+        let loaded = try await auth.call { try await $0.categories(token: $1) }
+        categories = loaded
+        return loaded
+    }
+
+    func timeline(of id: String, page: Int, perPage: Int, kinds: [TimelineItem.Kind], search: String?) async throws
+        -> TimelinePage {
+        try await auth.call {
+            try await $0.timeline(vehicleID: id, page: page, perPage: perPage, kinds: kinds, search: search, token: $1)
+        }
+    }
+
+    /// Counts saved, changed and deleted entries, so open screens know when to reload.
+    private(set) var entryChanges = 0
+
+    /// Runs a change to an entry, then refreshes the vehicle's key figures and the widgets.
+    private func changingEntries<T>(of vehicleID: String, _ change: (APIClient, String) async throws -> T) async throws
+        -> T {
+        let result = try await auth.call(change)
+        entryChanges += 1
+        WidgetRefresh.reload()
+        if let figures = try? await auth.call({ try await $0.stats(vehicleID: vehicleID, token: $1) }) {
+            stats[vehicleID] = figures
+        }
+        return result
+    }
+
+    /// Deletes an entry of the list through the endpoint it belongs to.
+    func delete(_ item: TimelineItem, of vehicleID: String) async throws {
+        try await changingEntries(of: vehicleID) { api, token in
+            switch item.source {
+            case .fillup: try await api.deleteFillup(id: item.rawID, token: token)
+            case .entry: try await api.deleteExpense(id: item.rawID, token: token)
+            case .trip: try await api.deleteTrip(id: item.rawID, token: token)
+            }
+        }
+    }
+
+    /// Changes a fill-up. Returns the API's odometer warnings.
+    func updateFillup(_ id: String, _ patch: FillupPatch, of vehicleID: String) async throws -> [String] {
+        try await changingEntries(of: vehicleID) { try await $0.updateFillup(id: id, patch, token: $1) }.messages
+    }
+
+    func setFillupOdometer(_ id: String, km: Int, of vehicleID: String) async throws -> [String] {
+        try await changingEntries(of: vehicleID) { try await $0.setFillupOdometer(id: id, km: km, token: $1) }.messages
+    }
+
+    func expense(_ id: String) async throws -> RemoteExpense {
+        try await auth.call { try await $0.expense(id: id, token: $1) }
+    }
+
+    /// Saves a new expense (`id` nil) or changes one. Returns the API's odometer warnings.
+    func saveExpense(_ input: ExpenseInput, id: String?) async throws -> [String] {
+        try await changingEntries(of: input.vehicleId) { api, token in
+            if let id {
+                return try await api.updateExpense(id: id, input, token: token)
+            } else {
+                return try await api.createExpense(input, token: token)
+            }
+        }.messages
+    }
+
+    func trip(_ id: String) async throws -> RemoteTrip {
+        try await auth.call { try await $0.trip(id: id, token: $1) }
+    }
+
+    /// Saves a new trip (`id` nil) or changes one. Returns the API's odometer warnings.
+    func saveTrip(_ input: TripInput, id: String?) async throws -> [String] {
+        try await changingEntries(of: input.vehicleId) { api, token in
+            if let id {
+                return try await api.updateTrip(id: id, input, token: token)
+            } else {
+                return try await api.createTrip(input, token: token)
+            }
+        }.messages
+    }
+
+    func deleteTrip(_ tripID: String, of vehicleID: String) async throws {
+        try await changingEntries(of: vehicleID) { try await $0.deleteTrip(id: tripID, token: $1) }
+    }
+
+    func trips(of id: String, year: Int?, purpose: String?, page: Int) async throws -> TripsPage {
+        try await auth.call {
+            try await $0.trips(vehicleID: id, year: year, purpose: purpose, page: page, perPage: 50, token: $1)
+        }
+    }
+
+    func tripSummary(of id: String, year: Int?) async throws -> TripSummary {
+        try await auth.call { try await $0.tripSummary(vehicleID: id, year: year, token: $1) }
+    }
+
+    func tripsCSV(of id: String, year: Int?) async throws -> Data {
+        try await auth.call { try await $0.tripsCSV(vehicleID: id, year: year, token: $1) }
+    }
+
+    // MARK: - Categories
+
+    func saveCategory(_ input: CategoryInput, id: String?) async throws {
+        try await auth.call { api, token in
+            if let id {
+                try await api.updateCategory(id: id, input, token: token)
+            } else {
+                try await api.createCategory(input, token: token)
+            }
+        }
+        try await loadCategories(reload: true)
+    }
+
+    func deleteCategory(_ id: String, moveTo: String?) async throws {
+        try await auth.call { try await $0.deleteCategory(id: id, moveTo: moveTo, token: $1) }
+        try await loadCategories(reload: true)
+    }
+
+    // MARK: - Sharing
+
+    func members(of id: String) async throws -> VehicleMembers {
+        try await auth.call { try await $0.members(vehicleID: id, token: $1) }
+    }
+
+    func invite(to id: String, email: String, role: VehicleRole) async throws {
+        try await auth.call { try await $0.invite(vehicleID: id, email: email, role: role.rawValue, token: $1) }
+    }
+
+    func revokeInvitation(_ invitationID: String, of id: String) async throws {
+        try await auth.call { try await $0.revokeInvitation(vehicleID: id, invitationID: invitationID, token: $1) }
+    }
+
+    func setRole(_ role: VehicleRole, ofMember userID: String, in id: String) async throws {
+        try await auth.call {
+            try await $0.setMemberRole(vehicleID: id, userID: userID, role: role.rawValue, token: $1)
+        }
+    }
+
+    func removeMember(_ userID: String, from id: String) async throws {
+        try await auth.call { try await $0.removeMember(vehicleID: id, userID: userID, token: $1) }
+    }
+
+    /// Leaves a vehicle that was shared with the user; it disappears from the list.
+    func leave(_ id: String) async throws {
+        try await auth.call { try await $0.removeMember(vehicleID: id, userID: "me", token: $1) }
+        vehicles.removeAll { $0.id == id }
+        stats[id] = nil
+    }
+
+    func invitations() async throws -> [PendingInvitation] {
+        try await auth.call { try await $0.invitations(token: $1) }
+    }
+
+    /// Accepts or declines an invitation and reloads the vehicles and the open-invitation count.
+    func answer(_ invitation: PendingInvitation, accept: Bool) async throws {
+        try await auth.call { try await $0.answerInvitation(id: invitation.id, accept: accept, token: $1) }
+        await auth.refreshUser()
+        if accept { await load() }
     }
 
     /// Price per unit of the latest fill-up with this unit, as a default for the next one.

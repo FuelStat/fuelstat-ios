@@ -47,12 +47,16 @@ enum Route: Hashable {
     case accountEmail
     case accountPassword
     case accountTwoFactor
+    case tripLog(String)
+    case sharing(String)
+    case invitations
+    case categories
+    case allReminders
 }
 
 /// What the quick-entry sheet starts with.
 enum EntryKind: String, Identifiable {
-    case fuel = "l"
-    case charge = "kwh"
+    case fuel, charge, expense, trip, odometer
 
     var id: String { rawValue }
 }
@@ -120,6 +124,8 @@ private struct MainTabs: View {
             await store.load()
             // Lets Siri understand phrases with vehicle names ("VW Golf in Fuelstat öffnen").
             FuelstatShortcuts.updateAppShortcutParameters()
+            // Replan local reminders from the API's due dates at every start (loading them does that).
+            if ReminderNotifications.isEnabled { _ = await store.allReminders() }
         }
         .onChange(of: selectedID) { VehicleSelection.storedID = selectedID }
         .onChange(of: store.vehicles.map(\.id), initial: true) {
@@ -129,7 +135,7 @@ private struct MainTabs: View {
         .onChange(of: store.hasLoaded) { handleIntentRequest() }
         .onChange(of: router.savedEntries) { refresh += 1 }
         .sheet(item: $entry, onDismiss: { refresh += 1 }) { kind in
-            FillupEntryView(store: store, vehicleID: store.resolvedSelection(selectedID), kind: kind)
+            QuickEntryView(store: store, vehicleID: store.resolvedSelection(selectedID), kind: kind)
         }
     }
 
@@ -170,7 +176,7 @@ private struct MainTabs: View {
     }
 
     private func openEntry(_ kind: EntryKind?) {
-        guard !store.vehicles.isEmpty else { return }
+        guard store.vehicles.contains(where: \.role.canRecord) else { return }
         if let kind {
             entry = kind
         } else {
@@ -200,6 +206,11 @@ extension View {
             case .accountEmail: EmailEditView()
             case .accountPassword: PasswordChangeView()
             case .accountTwoFactor: TwoFactorView()
+            case .tripLog(let id): TripLogView(store: store, vehicleID: id)
+            case .sharing(let id): VehicleSharingView(store: store, vehicleID: id)
+            case .invitations: InvitationsView(store: store)
+            case .categories: CategoriesView(store: store)
+            case .allReminders: AllRemindersView(store: store)
             }
         }
     }

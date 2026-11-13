@@ -39,9 +39,12 @@ struct APIUser: Decodable, Equatable {
     /// New address waiting for confirmation; sign-in still uses `email` until then.
     var pendingEmail: String?
     var terms: Terms?
+    /// Open invitations to vehicles of other accounts (`/whoami` only).
+    var pendingInvitations: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, email, username, terms
+        case pendingInvitations = "pending_invitations"
         case mfaEnabled = "mfa_enabled"
         case profileImageURL = "profile_image_url"
         case emailVerified = "email_verified"
@@ -70,6 +73,7 @@ struct APIUser: Decodable, Equatable {
         emailVerified = try? c.decodeIfPresent(Bool.self, forKey: .emailVerified)
         pendingEmail = c.text(.pendingEmail)
         terms = try? c.decodeIfPresent(Terms.self, forKey: .terms)
+        pendingInvitations = c.number(.pendingInvitations).map { Int($0) }
     }
 
     /// Name shown in the app: the user name, otherwise the e-mail address.
@@ -254,9 +258,17 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
     let batteryCapacity: Double?
     let tireSizeSummer: String?
     let tireSizeWinter: String?
+    /// The signed-in user's role (`owner`, `editor`, `viewer`); servers without sharing send none.
+    let role: VehicleRole
+    /// Name of the owner, only for vehicles shared with the user.
+    let ownerName: String?
+
+    /// A vehicle of another account that was shared with the user.
+    var isShared: Bool { role != .owner }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, brand, model, year, vin
+        case id, name, brand, model, year, vin, role
+        case ownerName = "owner_name"
         case fuelType = "fuel_type"
         case imageURL = "image_url"
         case licensePlate = "license_plate"
@@ -285,6 +297,8 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
         batteryCapacity = c.number(.batteryCapacity)
         tireSizeSummer = c.text(.tireSizeSummer)
         tireSizeWinter = c.text(.tireSizeWinter)
+        role = c.text(.role).flatMap(VehicleRole.init(rawValue:)) ?? .owner
+        ownerName = c.text(.ownerName)
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
@@ -512,6 +526,8 @@ struct RemoteReminder: Decodable, Identifiable {
     let title: String
     let category: String
     let dueDate: Date?
+    /// The due date as the API sent it (`YYYY-MM-DD`), for scheduling local notifications.
+    let dueDay: String?
     let dueKm: Double?
     let status: Status
     /// Days until the due date (negative when overdue).
@@ -521,15 +537,25 @@ struct RemoteReminder: Decodable, Identifiable {
 
     /// Most urgent first: overdue, soon, then by days left. Only orders what the API calculated.
     static func byUrgency(_ list: [RemoteReminder]) -> [RemoteReminder] {
-        func rank(_ status: Status) -> Int {
-            switch status {
-            case .overdue: 0
-            case .soon: 1
-            case .ok: 2
-            case .unknown: 3
-            }
+        list.sorted { urgencyKey($0) < urgencyKey($1) }
+    }
+
+    /// Sort key for urgency: status first, then days left.
+    static func urgencyKey(_ reminder: RemoteReminder) -> UrgencyKey {
+        let rank = switch reminder.status {
+        case .overdue: 0
+        case .soon: 1
+        case .ok: 2
+        case .unknown: 3
         }
-        return list.sorted { (rank($0.status), $0.days ?? .max) < (rank($1.status), $1.days ?? .max) }
+        return UrgencyKey(rank: rank, days: reminder.days ?? .max)
+    }
+
+    struct UrgencyKey: Comparable {
+        let rank: Int
+        let days: Int
+
+        static func < (lhs: Self, rhs: Self) -> Bool { (lhs.rank, lhs.days) < (rhs.rank, rhs.days) }
     }
 
     var symbol: String {
@@ -552,7 +578,8 @@ struct RemoteReminder: Decodable, Identifiable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         title = c.text(.title) ?? ""
         category = c.text(.category) ?? ""
-        dueDate = c.text(.dueDate).flatMap(APIDate.parseDay)
+        dueDay = c.text(.dueDate).map { String($0.prefix(10)) }
+        dueDate = dueDay.flatMap(APIDate.parseDay)
         dueKm = c.number(.dueKm)
         status = c.text(.status).flatMap(Status.init(rawValue:)) ?? .unknown
         days = c.number(.days).map { Int($0) }

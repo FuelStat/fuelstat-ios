@@ -116,18 +116,38 @@ extension RemoteReminder.Status {
     }
 }
 
-/// All due dates of a vehicle.
+/// All due dates of a vehicle. Tapping one records the matching expense (e.g. the TÜV that was just done); the
+/// API then calculates the next due date from it.
 struct RemindersListView: View {
     let store: VehicleStore
     let vehicleID: String
 
     @State private var reminders: [RemoteReminder] = []
     @State private var errorMessage: String?
+    @State private var completing: RemoteReminder?
+
+    private var canRecord: Bool { store.vehicle(vehicleID)?.role.canRecord ?? true }
 
     var body: some View {
-        List(reminders) { reminder in
-            ReminderRow(reminder: reminder)
-                .listRowBackground(Theme.card)
+        List {
+            Section {
+                ForEach(reminders) { reminder in
+                    if canRecord {
+                        Button { completing = reminder } label: {
+                            ReminderRow(reminder: reminder)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(Text("Trägt den Termin als erledigt ein"))
+                    } else {
+                        ReminderRow(reminder: reminder)
+                    }
+                }
+            } footer: {
+                if canRecord, !reminders.isEmpty {
+                    Text("Tippe auf einen Termin, um ihn als erledigt einzutragen. Der nächste Termin ergibt sich daraus.")
+                }
+            }
+            .listRowBackground(Theme.card)
         }
         .themedBackground()
         .overlay {
@@ -138,7 +158,10 @@ struct RemindersListView: View {
         }
         .navigationTitle("Termine")
         .refreshable { await load() }
-        .task { await load() }
+        .task(id: store.entryChanges) { await load() }
+        .sheet(item: $completing) { reminder in
+            ExpenseFormView(store: store, vehicleID: vehicleID, category: reminder.category)
+        }
     }
 
     private func load() async {

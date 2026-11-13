@@ -137,6 +137,7 @@ private struct VehicleSwitcherSheet: View {
                                     .joined(separator: " · "))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                if vehicle.isShared { SharedVehicleBadge(vehicle: vehicle) }
                             }
                             Spacer()
                             if vehicle.id == selectedID {
@@ -166,6 +167,27 @@ private struct VehicleSwitcherSheet: View {
                 }
             }
         }
+    }
+}
+
+/// Marks a vehicle of another account that was shared with the user: icon, owner and the user's role.
+struct SharedVehicleBadge: View {
+    let vehicle: RemoteVehicle
+
+    var body: some View {
+        Label(Self.text(for: vehicle), systemImage: "person.2.fill")
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(Theme.brandDeep)
+            .padding(.horizontal, Theme.Spacing.xs)
+            .padding(.vertical, 2)
+            .background(Theme.cardTint, in: .capsule)
+    }
+
+    static func text(for vehicle: RemoteVehicle) -> String {
+        if let owner = vehicle.ownerName {
+            return String(localized: "Geteilt von \(owner) · \(vehicle.role.label)")
+        }
+        return String(localized: "Geteilt · \(vehicle.role.label)")
     }
 }
 

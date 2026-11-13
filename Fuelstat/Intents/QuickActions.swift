@@ -68,6 +68,13 @@ enum QuickActions {
 
 /// Receives quick actions: at launch via the scene options, while running via the scene delegate.
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Taps on local reminders open the vehicle (see ReminderNotifications).
+        ReminderNotifications.installDelegate()
+        return true
+    }
+
     func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         if let item = options.shortcutItem {

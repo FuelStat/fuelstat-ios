@@ -165,6 +165,7 @@ final class AuthSession {
     private func merge(_ updated: APIUser) {
         var updated = updated
         if updated.terms == nil { updated.terms = user?.terms }
+        if updated.pendingInvitations == nil { updated.pendingInvitations = user?.pendingInvitations }
         update(updated)
     }
 
@@ -255,6 +256,8 @@ final class AuthSession {
         token = nil
         signOutNotice = notice
         state = .signedOut
+        // Due dates of this account must not be announced after signing out.
+        ReminderNotifications.removeAll()
         WidgetRefresh.reload()
     }
 

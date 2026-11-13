@@ -63,6 +63,7 @@ private struct VehicleRow: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+                if vehicle.isShared { SharedVehicleBadge(vehicle: vehicle) }
             }
         }
         .padding(.vertical, Theme.Spacing.xxs)
@@ -74,6 +75,7 @@ private struct VehicleRow: View {
         var parts = [vehicle.name, vehicle.fuelType.label]
         if let plate = vehicle.licensePlate { parts.append(String(localized: "Kennzeichen \(plate)")) }
         if let odometer { parts.append(String(localized: "Kilometerstand \(odometer)")) }
+        if vehicle.isShared { parts.append(SharedVehicleBadge.text(for: vehicle)) }
         return parts.joined(separator: ", ")
     }
 }

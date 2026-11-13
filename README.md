@@ -51,8 +51,35 @@ self-hosted servers can be entered on the sign-in screen):
   vehicle switcher at the top, the choice is remembered
 - Start: vehicle hero, key figures, due dates (`/reminders`), cheapest nearby
   station, latest entries
-- Einträge: fill-ups grouped by month, search by station, filter chips for
-  plug-in hybrids, more entries load while scrolling, swipe to delete
+- Einträge: fill-ups, charging sessions, expenses, odometer notes and trips in
+  one list from `/vehicles/:id/timeline`, grouped by month with the month's
+  costs, filter chips per kind, search on the server (place, category, note),
+  more entries load while scrolling, swipe to edit or delete
+- Entry details: every entry opens a page with all its values (consumption of
+  the segment, who recorded it on shared vehicles), edit and delete
+- Editing: fill-ups and charging sessions (`PATCH /fillups/:id`, the API's
+  14-day rule is shown as its message), expenses, odometer notes and trips;
+  "Kilometerstand nachtragen" for fill-ups without a real reading works at any
+  time; odometer warnings from the API are shown after saving
+- The "+" sheet has type chips: Tanken, Laden, Ausgabe, Fahrt, Kilometer
+- Expenses (`/entries`) with categories from `GET /categories` (name, icon and
+  colour from the API, locked ones marked "mit Plus"); own categories under
+  Profil → Kategorien (add, change, delete with moving the expenses)
+- Trip log (Einträge or vehicle page → Fahrtenbuch): trips per year and
+  purpose, totals, business share and estimated costs from `/trips/summary`,
+  km per month as a chart, CSV export through the share sheet
+  (`/trips/export`, plan limit as API message)
+- Sharing (#34): members and roles of a vehicle, invite by e-mail, withdraw
+  invitations, change roles, remove members, leave a shared vehicle; accept or
+  decline invitations under Profil → Einladungen; shared vehicles are marked
+  in the lists; viewers are not offered editing, the API enforces all rights
+- Due dates: tap one to record it as done (opens the expense with the right
+  category); Profil → Termine und Erinnerungen lists the due dates of all
+  vehicles, most urgent first
+- Local reminders for due dates (no push server): switched on in Profil →
+  Termine und Erinnerungen, permission asked only then, lead time selectable,
+  replanned whenever the due dates are loaded and at app start, removed on
+  sign-out, a tap opens the vehicle
 - Statistik: key figures and consumption per fill-up (segments from `/stats`)
   as a chart
 - Profil: account, vehicle management, sign out, app and server version,

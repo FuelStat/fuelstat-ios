@@ -60,6 +60,38 @@ enum APIError: LocalizedError, Equatable {
             case "invalid_category": String(localized: "Bitte wähle eine Art aus.")
             case "forbidden": String(localized: "Dazu fehlen dir die Rechte.")
             case "user_not_found", "account_not_found": String(localized: "Das Konto gibt es nicht mehr.")
+            case "fillup_edit_window_expired":
+                String(localized: "Tank- und Ladevorgänge lassen sich nur 14 Tage lang ändern. Den Kilometerstand kannst du weiterhin nachtragen.")
+            case "fillup_not_found", "entry_not_found", "trip_not_found":
+                String(localized: "Den Eintrag gibt es nicht mehr.")
+            case "read_only": String(localized: "Du darfst dieses Fahrzeug nur ansehen.")
+            case "entry_not_editable": String(localized: "Diesen Eintrag darf nur ändern, wer ihn erfasst hat, oder der Besitzer.")
+            case "owner_only": String(localized: "Das darf nur der Besitzer des Fahrzeugs.")
+            case "unknown_category", "missing_category": String(localized: "Bitte wähle eine Kategorie.")
+            case "invalid_amountEur": String(localized: "Der Betrag ist ungültig.")
+            case "invalid_occurredAt", "invalid_startedAt", "invalid_endedAt": String(localized: "Das Datum ist ungültig.")
+            case "invalid_odometerEnd": String(localized: "Der Kilometerstand am Ende ist ungültig.")
+            case "invalid_odometerStart":
+                String(localized: "Der Kilometerstand am Start ist ungültig oder höher als am Ende.")
+            case "invalid_distanceKm": String(localized: "Die Strecke ist ungültig.")
+            case "invalid_purpose": String(localized: "Bitte wähle einen Zweck.")
+            case "name_too_long": String(localized: "Der Name ist zu lang.")
+            case "name_taken": String(localized: "Eine Kategorie mit diesem Namen gibt es schon.")
+            case "invalid_icon", "invalid_color", "invalid_group": String(localized: "Symbol, Farbe oder Gruppe ist ungültig.")
+            case "category_limit_reached": String(localized: "Mehr eigene Kategorien erlaubt dein Tarif nicht.")
+            case "category_in_use":
+                String(localized: "Die Kategorie wird noch verwendet. Wähle eine Kategorie, in die die Ausgaben verschoben werden.")
+            case "invalid_moveTo": String(localized: "In diese Kategorie lassen sich die Ausgaben nicht verschieben.")
+            case "category_not_found": String(localized: "Die Kategorie gibt es nicht mehr.")
+            case "cannot_invite_self": String(localized: "Du kannst dich nicht selbst einladen.")
+            case "already_member": String(localized: "Dieses Konto hat bereits Zugriff auf das Fahrzeug.")
+            case "member_limit_reached": String(localized: "Mehr Mitglieder sind für ein Fahrzeug nicht möglich.")
+            case "too_many_invitations": String(localized: "Du hast heute schon sehr viele Einladungen verschickt. Bitte versuche es morgen wieder.")
+            case "invitation_not_found": String(localized: "Die Einladung gibt es nicht mehr.")
+            case "invitation_expired": String(localized: "Die Einladung ist abgelaufen.")
+            case "member_not_found": String(localized: "Dieses Mitglied hat keinen Zugriff mehr.")
+            case "owner_cannot_leave": String(localized: "Als Besitzer kannst du das Fahrzeug nicht verlassen.")
+            case "invalid_role": String(localized: "Die Rolle ist ungültig.")
             default: String(localized: "Serverfehler (\(code)).")
             }
         case .invalidResponse:
@@ -86,7 +118,14 @@ enum APIError: LocalizedError, Equatable {
             }
             return String(localized: "Dein Tarif erlaubt höchstens \(limit) Fahrzeuge.")
         }
-        return String(localized: "Diese Funktion ist in deinem Tarif nicht enthalten.")
+        switch feature {
+        case "sharing": return String(localized: "Fahrzeuge teilen ist in deinem Tarif nicht enthalten.")
+        case "tripExport": return String(localized: "Der Export des Fahrtenbuchs ist in deinem Tarif nicht enthalten.")
+        case "tripCategories": return String(localized: "Diesen Zweck gibt es in deinem Tarif nicht.")
+        case "premiumCategories": return String(localized: "Diese Kategorie ist in deinem Tarif nicht enthalten.")
+        case "customCategories": return String(localized: "Eigene Kategorien sind in deinem Tarif nicht enthalten.")
+        default: return String(localized: "Diese Funktion ist in deinem Tarif nicht enthalten.")
+        }
     }
 }
 
@@ -260,6 +299,151 @@ struct APIClient {
         try await send("fillups", method: "POST", body: input, token: token)
     }
 
+    func updateFillup(id: String, _ patch: FillupPatch, token: String) async throws -> SavedEntry {
+        try await send("fillups/\(id)", method: "PATCH", body: patch, token: token)
+    }
+
+    /// Adds the odometer reading to a fill-up; the API allows this at any time.
+    func setFillupOdometer(id: String, km: Int, token: String) async throws -> SavedEntry {
+        try await send("fillups/\(id)", method: "PATCH", body: OdometerPatch(odometerKm: km), token: token)
+    }
+
+    // MARK: - Entry list
+
+    /// One page of the entry list: fill-ups, charging sessions, expenses, odometer notes and trips, newest first.
+    func timeline(vehicleID: String, page: Int, perPage: Int, kinds: [TimelineItem.Kind], search: String?,
+                  token: String) async throws -> TimelinePage {
+        var query = pageQuery(page: page, perPage: perPage)
+        if !kinds.isEmpty {
+            query.append(URLQueryItem(name: "type", value: kinds.map(\.rawValue).joined(separator: ",")))
+        }
+        if let search, !search.isEmpty { query.append(URLQueryItem(name: "q", value: search)) }
+        return try await send("vehicles/\(vehicleID)/timeline", query: query, token: token)
+    }
+
+    // MARK: - Expenses and categories
+
+    func categories(token: String) async throws -> CategoriesResponse {
+        try await send("categories", token: token)
+    }
+
+    func createCategory(_ input: CategoryInput, token: String) async throws {
+        let _: EmptyResponse = try await send("categories", method: "POST", body: input, token: token)
+    }
+
+    func updateCategory(id: String, _ input: CategoryInput, token: String) async throws {
+        let _: EmptyResponse = try await send("categories/\(id)", method: "PATCH", body: input, token: token)
+    }
+
+    /// Deletes an own category. Expenses that use it are moved to `moveTo`; without it the API refuses.
+    func deleteCategory(id: String, moveTo: String?, token: String) async throws {
+        let query = moveTo.map { [URLQueryItem(name: "moveTo", value: $0)] } ?? []
+        let _: EmptyResponse = try await send("categories/\(id)", method: "DELETE", query: query, token: token)
+    }
+
+    func expense(id: String, token: String) async throws -> RemoteExpense {
+        try await send("entries/\(id)", token: token)
+    }
+
+    func createExpense(_ input: ExpenseInput, token: String) async throws -> SavedEntry {
+        var input = input
+        input.sendsNulls = false
+        return try await send("entries", method: "POST", body: input, token: token)
+    }
+
+    func updateExpense(id: String, _ input: ExpenseInput, token: String) async throws -> SavedEntry {
+        var input = input
+        input.sendsNulls = true
+        return try await send("entries/\(id)", method: "PATCH", body: input, token: token)
+    }
+
+    func deleteExpense(id: String, token: String) async throws {
+        let _: EmptyResponse = try await send("entries/\(id)", method: "DELETE", token: token)
+    }
+
+    // MARK: - Trips
+
+    func trips(vehicleID: String, year: Int?, purpose: String?, page: Int, perPage: Int, token: String) async throws
+        -> TripsPage {
+        var query = pageQuery(page: page, perPage: perPage)
+        if let year { query.append(URLQueryItem(name: "year", value: String(year))) }
+        if let purpose { query.append(URLQueryItem(name: "purpose", value: purpose)) }
+        return try await send("vehicles/\(vehicleID)/trips", query: query, token: token)
+    }
+
+    func tripSummary(vehicleID: String, year: Int?, token: String) async throws -> TripSummary {
+        try await send("vehicles/\(vehicleID)/trips/summary", query: yearQuery(year), token: token)
+    }
+
+    /// The trip log as a CSV file, as the API writes it.
+    func tripsCSV(vehicleID: String, year: Int?, token: String) async throws -> Data {
+        var request = makeRequest("vehicles/\(vehicleID)/trips/export", method: "GET", query: yearQuery(year),
+                                  token: token)
+        request.setValue("text/csv", forHTTPHeaderField: "Accept")
+        return try await data(for: request, token: token)
+    }
+
+    func trip(id: String, token: String) async throws -> RemoteTrip {
+        try await send("trips/\(id)", token: token)
+    }
+
+    func createTrip(_ input: TripInput, token: String) async throws -> SavedEntry {
+        var input = input
+        input.sendsNulls = false
+        return try await send("trips", method: "POST", body: input, token: token)
+    }
+
+    func updateTrip(id: String, _ input: TripInput, token: String) async throws -> SavedEntry {
+        var input = input
+        input.sendsNulls = true
+        return try await send("trips/\(id)", method: "PATCH", body: input, token: token)
+    }
+
+    func deleteTrip(id: String, token: String) async throws {
+        let _: EmptyResponse = try await send("trips/\(id)", method: "DELETE", token: token)
+    }
+
+    private func yearQuery(_ year: Int?) -> [URLQueryItem] {
+        year.map { [URLQueryItem(name: "year", value: String($0))] } ?? []
+    }
+
+    // MARK: - Sharing
+
+    func members(vehicleID: String, token: String) async throws -> VehicleMembers {
+        try await send("vehicles/\(vehicleID)/members", token: token)
+    }
+
+    func invite(vehicleID: String, email: String, role: String, token: String) async throws {
+        let _: EmptyResponse = try await send("vehicles/\(vehicleID)/invitations", method: "POST",
+                                              body: MemberRoleInput(email: email, role: role), token: token)
+    }
+
+    func revokeInvitation(vehicleID: String, invitationID: String, token: String) async throws {
+        let _: EmptyResponse = try await send("vehicles/\(vehicleID)/invitations/\(invitationID)", method: "DELETE",
+                                              token: token)
+    }
+
+    func setMemberRole(vehicleID: String, userID: String, role: String, token: String) async throws {
+        let _: EmptyResponse = try await send("vehicles/\(vehicleID)/members/\(userID)", method: "PATCH",
+                                              body: MemberRoleInput(email: nil, role: role), token: token)
+    }
+
+    /// Removes a member; `me` leaves a vehicle that was shared with the user.
+    func removeMember(vehicleID: String, userID: String, token: String) async throws {
+        let _: EmptyResponse = try await send("vehicles/\(vehicleID)/members/\(userID)", method: "DELETE",
+                                              token: token)
+    }
+
+    /// Open invitations to vehicles of other accounts.
+    func invitations(token: String) async throws -> [PendingInvitation] {
+        try await allPages("invitations", token: token)
+    }
+
+    func answerInvitation(id: String, accept: Bool, token: String) async throws {
+        let _: EmptyResponse = try await send("invitations/\(id)/\(accept ? "accept" : "decline")", method: "POST",
+                                              token: token)
+    }
+
     /// Fuel stations near a location with current prices (Tankerkönig via the Fuelstat API).
     func stations(latitude: Double, longitude: Double, radiusKm: Int, type: String, token: String) async throws
         -> [RemoteStation] {
@@ -354,6 +538,17 @@ struct APIClient {
     }
 
     private func perform<Response: Decodable>(_ request: URLRequest, token: String?) async throws -> Response {
+        let data = try await data(for: request, token: token)
+        if Response.self == EmptyResponse.self { return EmptyResponse() as! Response }
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw APIError.invalidResponse
+        }
+    }
+
+    /// Sends the request and returns the body of a successful answer; errors become `APIError`.
+    private func data(for request: URLRequest, token: String?) async throws -> Data {
         let data: Data
         let response: URLResponse
         do {
@@ -378,13 +573,7 @@ struct APIClient {
             }
             throw APIError.server(code: code ?? "http_\(http.statusCode)", status: http.statusCode)
         }
-
-        if Response.self == EmptyResponse.self { return EmptyResponse() as! Response }
-        do {
-            return try JSONDecoder().decode(Response.self, from: data)
-        } catch {
-            throw APIError.invalidResponse
-        }
+        return data
     }
 }
 
