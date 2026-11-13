@@ -60,13 +60,16 @@ struct AccountView: View {
                 .listRowBackground(Theme.card)
 
                 Section {
+                    NavigationLink(value: Route.accountDevices) {
+                        Label("Angemeldete Geräte", systemImage: "iphone.gen3")
+                    }
                     Button("Auf allen Geräten abmelden", systemImage: "iphone.slash", role: .destructive) {
                         confirmingSignOutEverywhere = true
                     }
                 } header: {
                     Text("Geräte")
                 } footer: {
-                    Text("Meldet dich überall ab, auch auf diesem iPhone und in der Web-App. Eine Liste der angemeldeten Geräte folgt, sobald der Server sie anbietet.")
+                    Text("„Auf allen Geräten abmelden“ meldet dich überall ab, auch auf diesem iPhone und in der Web-App.")
                 }
                 .listRowBackground(Theme.card)
             }

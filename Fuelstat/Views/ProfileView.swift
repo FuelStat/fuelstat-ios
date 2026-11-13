@@ -10,6 +10,7 @@ struct ProfileView: View {
     @State private var confirmingLogout = false
     @State private var serverVersion: String?
     @State private var termsVersion: String?
+    @State private var recommendedVersion: String?
     @State private var webPage: WebPage?
 
     private var version: String { "\(AppInfo.version) (\(AppInfo.build))" }
@@ -94,6 +95,12 @@ struct ProfileView: View {
                 .listRowBackground(Theme.card)
 
                 Section("Über") {
+                    if let recommendedVersion {
+                        Label("Version \(recommendedVersion) nutzt alle Funktionen dieses Servers. Bitte aktualisiere die App.",
+                              systemImage: "arrow.down.app")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brandDeep)
+                    }
                     LabeledContent("App-Version", value: version)
                     LabeledContent("Server-Version", value: serverVersion ?? "–")
                     Link(destination: URL(string: "https://github.com/FuelStat/fuelstat-ios")!) {
@@ -148,6 +155,11 @@ struct ProfileView: View {
     private func loadServerVersion() async {
         if let health = try? await auth.api.health() {
             serverVersion = health.version ?? String(localized: "unbekannt")
+            if case .updateRecommended(let recommended) = health.appStatus {
+                recommendedVersion = recommended
+            } else {
+                recommendedVersion = nil
+            }
             termsVersion = health.termsVersion.map {
                 TermsVersion.date(from: $0)?.formatted(date: .numeric, time: .omitted) ?? $0
             }

@@ -112,8 +112,21 @@ self-hosted servers can be entered on the sign-in screen):
 - Home Screen quick actions (long press on the icon): Tanken, Laden, vehicles
 - Welcome screen, sign-in with labelled fields, 2FA as six digit boxes
   (one-time-code autofill), own server under "Eigener Server"
-- Sign in / register (incl. 2FA code), token stored in the Keychain, renewed
-  once a day while the app is used (`/auth/refresh`), sign out revokes it
+- Sign in / register (incl. 2FA code) with a device session
+  (FuelStat/fuelstat#117): a 30-minute access token and a one-time refresh
+  token in the Keychain, renewed through `/auth/session/refresh` shortly
+  before expiry or after a 401; app, widgets and Siri share the pair and never
+  swap in parallel. The sign-in lasts as long as the app is used at least every
+  180 days. Sign-ins from before keep their 7-day token (`/auth/refresh`) until
+  the next sign-in. Sign out ends the device session (`DELETE
+  /auth/sessions/current`)
+- Konto → Angemeldete Geräte: the apps signed in to the account
+  (`GET /auth/sessions`), this device marked, others signed out with a swipe
+- Minimum app version (FuelStat/fuelstat#118): every request sends
+  `X-Fuelstat-Client: ios/<version> (<build>)`; below `apps.ios.minimum_version`
+  from `/health` (checked at launch and when the app comes to the foreground)
+  a full-screen "Bitte aktualisiere Fuelstat" blocks the app, below
+  `recommended_version` Profil shows a hint
 - Vehicle page with photo, key figures, due dates, entries, chart and master data
 - Create, edit and delete vehicles; plan limits from the API are shown as a message
 - Record fill-ups and charging sessions: last vehicle and last price prefilled,

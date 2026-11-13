@@ -25,6 +25,7 @@ All types below are **linked to the user** (they belong to the account),
 | Identifiers | User ID | Account ID used in API paths | All signed-in requests |
 | Location | Precise Location | Current position for the nearby-station search, only while the app is in use; the server forwards it to Tankerkönig and does not store it | `GET /stations?lat=&lng=` |
 | Diagnostics | Other Diagnostic Data | App version, iOS version and device model, only with feedback | `page` of `POST /feedback` |
+| Diagnostics | Other Diagnostic Data | Device name as iOS reports it (since iOS 16 the model, e.g. "iPhone") and app version for the list of signed-in devices; app version and build with every request (`X-Fuelstat-Client`) | `device` of `POST /auth/login` and `/auth/register`, `POST /auth/session/refresh`, all requests |
 
 Notes:
 

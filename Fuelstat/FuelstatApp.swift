@@ -62,8 +62,32 @@ extension EntryKind {
 
 private struct RootView: View {
     @Environment(AuthSession.self) private var auth
+    @Environment(\.scenePhase) private var scenePhase
+    /// The minimum app version from `/health` (FuelStat/fuelstat#118) is higher than this app's.
+    @State private var requiredVersion: String?
 
     var body: some View {
+        content
+            .fullScreenCover(item: Binding(get: { requiredVersion.map(RequiredUpdate.init) }, set: { _ in })) { update in
+                AppUpdateRequiredView(minimumVersion: update.version) { await checkVersion() }
+            }
+            .task(id: scenePhase == .active) {
+                if scenePhase == .active { await checkVersion() }
+            }
+    }
+
+    /// Asks the server which app versions it supports. Offline nothing changes.
+    private func checkVersion() async {
+        guard let health = try? await auth.api.health() else { return }
+        if case .updateRequired(let minimum) = health.appStatus {
+            requiredVersion = minimum
+        } else {
+            requiredVersion = nil
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch auth.state {
         case .restoring:
             ProgressView()
@@ -76,5 +100,49 @@ private struct RootView: View {
             MainTabView()
                 .id(user.id)
         }
+    }
+}
+
+private struct RequiredUpdate: Identifiable {
+    let version: String
+    var id: String { version }
+}
+
+/// Shown when the server no longer supports this app version. Nothing else works until the app is updated, so the
+/// screen cannot be dismissed; "Erneut prüfen" asks the server again.
+private struct AppUpdateRequiredView: View {
+    let minimumVersion: String
+    let recheck: () async -> Void
+
+    @State private var isChecking = false
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.l) {
+            Spacer()
+            Image(systemName: "arrow.down.app.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(Theme.brand)
+                .accessibilityHidden(true)
+            Text("Bitte aktualisiere Fuelstat")
+                .font(.title.bold())
+                .foregroundStyle(Theme.brandDeep)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+            Text("Der Server unterstützt diese Version (\(AppVersion.marketing ?? "–")) nicht mehr. Nötig ist mindestens Version \(minimumVersion).")
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            Spacer()
+            PrimaryButton(title: "Erneut prüfen", isLoading: isChecking) {
+                isChecking = true
+                Task {
+                    await recheck()
+                    isChecking = false
+                }
+            }
+        }
+        .padding(Theme.Spacing.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background.ignoresSafeArea())
+        .interactiveDismissDisabled()
     }
 }

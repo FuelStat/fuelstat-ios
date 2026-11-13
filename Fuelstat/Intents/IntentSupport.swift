@@ -2,13 +2,12 @@ import AppIntents
 import Foundation
 import Observation
 
-/// API access for intents. They run in the app process and use the token the app stored in the Keychain; the app
-/// itself renews it. Nothing is calculated here, all figures come from the API.
+/// API access for intents. They run in the app process and use the sign-in the app stored in the Keychain,
+/// renewing the device session when needed. Nothing is calculated here, all figures come from the API.
 enum IntentAPI {
     static func call<T>(_ operation: (APIClient, String) async throws -> T) async throws -> T {
-        guard let token = KeychainStore.loadToken() else { throw IntentError.notSignedIn }
         do {
-            return try await operation(.configured, token)
+            return try await SignedInAPI.call(.configured, operation)
         } catch APIError.unauthorized {
             throw IntentError.notSignedIn
         } catch let error as APIError {

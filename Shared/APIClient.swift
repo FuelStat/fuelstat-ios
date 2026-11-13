@@ -60,6 +60,9 @@ enum APIError: LocalizedError, Equatable {
             case "invalid_category": String(localized: "Bitte wähle eine Art aus.")
             case "forbidden": String(localized: "Dazu fehlen dir die Rechte.")
             case "user_not_found", "account_not_found": String(localized: "Das Konto gibt es nicht mehr.")
+            case "session_not_found": String(localized: "Dieses Gerät ist bereits abgemeldet.")
+            case "app_update_required":
+                String(localized: "Diese Version von Fuelstat passt nicht mehr zum Server. Bitte aktualisiere die App.")
             case "fillup_edit_window_expired":
                 String(localized: "Tank- und Ladevorgänge lassen sich nur 14 Tage lang ändern. Den Kilometerstand kannst du weiterhin nachtragen.")
             case "fillup_not_found", "entry_not_found", "trip_not_found":
@@ -151,14 +154,40 @@ struct APIClient {
 
     // MARK: - Auth
 
-    func login(email: String, password: String, code: String?) async throws -> AuthResponse {
-        var body = ["email": email, "password": password]
-        if let code, !code.isEmpty { body["code"] = code }
+    private struct Credentials: Encodable {
+        let email: String
+        let password: String
+        var code: String?
+        /// With a device the API creates a device session: a short-lived token plus a refresh token.
+        let device: DeviceInfo?
+    }
+
+    func login(email: String, password: String, code: String?, device: DeviceInfo?) async throws -> AuthResponse {
+        let body = Credentials(email: email, password: password, code: code?.isEmpty == false ? code : nil,
+                               device: device)
         return try await send("auth/login", method: "POST", body: body, token: nil)
     }
 
-    func register(email: String, password: String) async throws -> AuthResponse {
-        try await send("auth/register", method: "POST", body: ["email": email, "password": password], token: nil)
+    func register(email: String, password: String, device: DeviceInfo?) async throws -> AuthResponse {
+        try await send("auth/register", method: "POST", body: Credentials(email: email, password: password,
+                                                                         device: device), token: nil)
+    }
+
+    /// Swaps the refresh token of the device session for a new pair. Sent without a bearer token.
+    func refreshSession(refreshToken: String, appVersion: String?) async throws -> SessionTokens {
+        var body = ["refreshToken": refreshToken]
+        if let appVersion { body["appVersion"] = appVersion }
+        return try await send("auth/session/refresh", method: "POST", body: body, token: nil)
+    }
+
+    /// Apps signed in to the account; `isCurrent` marks this one.
+    func sessions(token: String) async throws -> [DeviceSession] {
+        try await allPages("auth/sessions", token: token)
+    }
+
+    /// Signs one app out; `current` is this device.
+    func deleteSession(id: String, token: String) async throws {
+        let _: EmptyResponse = try await send("auth/sessions/\(id)", method: "DELETE", token: token)
     }
 
     func whoami(token: String) async throws -> APIUser {
@@ -170,12 +199,10 @@ struct APIClient {
         let _: EmptyResponse = try await send("auth/forgot-password", method: "POST", body: ["email": email], token: nil)
     }
 
-    /// Changes the password. The API revokes all tokens, including this one, and returns a new one.
-    func changePassword(current: String, new: String, token: String) async throws -> String {
-        let response: TokenResponse = try await send(
-            "auth/password", method: "POST", body: ["currentPassword": current, "newPassword": new], token: token
-        )
-        return response.token
+    /// Changes the password. The API revokes all tokens and sessions, including this one, and returns new ones.
+    func changePassword(current: String, new: String, token: String) async throws -> TokenResponse {
+        try await send("auth/password", method: "POST", body: ["currentPassword": current, "newPassword": new],
+                       token: token)
     }
 
     func resendVerification(token: String) async throws -> VerificationSent {
@@ -531,6 +558,8 @@ struct APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Lets the server tell app versions apart (minimum app version, FuelStat/fuelstat#118).
+        request.setValue(AppVersion.clientHeader, forHTTPHeaderField: "X-Fuelstat-Client")
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
