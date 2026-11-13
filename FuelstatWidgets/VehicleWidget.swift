@@ -6,6 +6,7 @@ import WidgetKit
 struct FuelstatWidgets: WidgetBundle {
     var body: some Widget {
         VehicleWidget()
+        CarPlayVehicleWidget()
     }
 }
 

@@ -235,6 +235,11 @@ On an unlocked device.
       the vehicle chosen in the widget settings; values equal the app's
 - [ ] Medium widget: "Tanken" and "Laden" open the entry sheet
       (`fuelstat://add`)
+- [ ] CarPlay (iOS 26, car or CarPlay Simulator from Xcode's Additional
+      Tools): add "Fahrzeug im Auto" in Settings → General → CarPlay → the car
+      → Widgets; it shows the vehicle selected in the app and its average
+      consumption; switching the vehicle in the app updates it; nothing on it
+      reacts to taps
 - [ ] Long press on the app icon: Tanken, Laden and the vehicles open the
       right screen
 
