@@ -327,11 +327,13 @@ struct RemoteCategory: Decodable, Identifiable, Hashable {
     let isAvailable: Bool
     /// Own category of the owner of a shared vehicle: shown, but only its owner can pick or change it.
     let isShared: Bool
+    /// Old free-text category of an earlier import: shown for existing entries, never offered again.
+    let isLegacy: Bool
 
     var id: String { key }
 
     enum CodingKeys: String, CodingKey {
-        case key, id, name, icon, color, group, form, plan, custom, selectable, available, shared
+        case key, id, name, icon, color, group, form, plan, custom, selectable, available, shared, legacy
     }
 
     init(from decoder: Decoder) throws {
@@ -348,6 +350,7 @@ struct RemoteCategory: Decodable, Identifiable, Hashable {
         isSelectable = (try? c.decodeIfPresent(Bool.self, forKey: .selectable)) ?? false
         isAvailable = (try? c.decodeIfPresent(Bool.self, forKey: .available)) ?? false
         isShared = (try? c.decodeIfPresent(Bool.self, forKey: .shared)) ?? false
+        isLegacy = (try? c.decodeIfPresent(Bool.self, forKey: .legacy)) ?? false
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.key == rhs.key }

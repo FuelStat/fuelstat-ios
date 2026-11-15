@@ -93,6 +93,17 @@ self-hosted servers can be entered on the sign-in screen):
   as a file in the format of the web app's export (semicolon, UTF-8 with BOM,
   German headers, charging and fuel grade columns), through the share sheet;
   formatted in `FuelstatCore` from the API's timeline, trips have their own export
+- CSV import (vehicle page → Daten → "Einträge aus CSV importieren", owner only,
+  not for archived vehicles; #38): pick a file from Files, check the column
+  assignment guessed from the headers (same detection as the web app: Fuelstat
+  export, Spritmonitor, spreadsheets; UTF-8 or Windows-1252, `;` `,` or tab),
+  see the rows and what the API says about them (`dryRun`: duplicates,
+  implausible odometer readings, rejected rows), then import in packages of
+  500. A template per drive type can be shared. Parsing and conversion are in
+  `FuelstatCore` (port of `csv_import.php`); duplicate detection and validation
+  are the API's. Not included: the "Bauteile" column, own categories created
+  from unknown names (they go to "Sonstiges", the name stays in the
+  description) and "Öffnen in Fuelstat" from the share sheet
 - Trip log (Einträge or vehicle page → Fahrtenbuch): trips per year and
   purpose, totals, business share and estimated costs from `/trips/summary`,
   km per month as a chart, CSV export through the share sheet
