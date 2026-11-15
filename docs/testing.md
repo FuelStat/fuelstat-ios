@@ -430,8 +430,8 @@ ship anyway) and are named here.
 ```markdown
 ## Test run (docs/testing.md)
 
-- App: 0.2.0 (build 2), commit abc1234
-- Device: iPhone 14 Pro, iOS 26.1
+- App: 0.2.1 (build 3), commit abc1234
+- Device: iPhone 14 Pro, iOS 27.2
 - Date: 2026-12-01
 
 | Server | API version (`/health`) | Result |
