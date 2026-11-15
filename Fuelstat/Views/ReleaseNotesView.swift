@@ -9,6 +9,17 @@ struct ReleaseNote: Identifiable {
     var id: String { version }
 
     static let all: [ReleaseNote] = [
+        ReleaseNote(version: "0.2.1", date: "November 2026", items: [
+            "Die App braucht jetzt iOS 27 oder neuer",
+            "Statistik mit Verbrauch und Kosten: Durchschnitt, niedrigster und höchster Wert, Verbrauch und Kosten je Monat und Jahr, Preise je Sorte, CO₂ und ein Jahresvergleich",
+            "Ladestationen in der Nähe beim Erfassen eines Ladevorgangs, mit Leistung, Steckern und Preis",
+            "Fahrzeugdaten vollständig: Kauf und Verkauf, Wartungs- und Ölintervalle, Versicherung, Steuer, Reifen und mehrere Kraftstoffsorten mit Standard",
+            "Eigene Fahrzeuge in der Reihenfolge sortieren, die dir passt",
+            "Dein Tarif und seine Grenzen unter Profil",
+            "Einträge lassen sich überall öffnen, wo sie stehen: auf Start, auf der Fahrzeugseite und im Fahrtenbuch",
+            "Einstieg beim ersten Start: Fahrzeug anlegen, ersten Eintrag erfassen und offene Einladungen sehen",
+            "Einträge als CSV exportieren, alle oder pro Jahr, im selben Format wie die Web-App",
+        ]),
         ReleaseNote(version: "0.2.0", date: "November 2026", items: [
             "Alle Einträge in einer Liste: Tanken, Laden, Ausgaben, Kilometerstände und Fahrten, mit Monatssummen, Filtern und Suche",
             "Jeder Eintrag lässt sich öffnen, bearbeiten und löschen; fehlende Kilometerstände trägst du jederzeit nach",

@@ -31,16 +31,18 @@ https://github.com/FuelStat/fuelstat
 
 ## Development
 
-### Current state (0.2.0 – Foundation)
+### Current state (0.2.1)
 
-Version 0.2.0 is the first regular release
-([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)):
-sign-in and account are complete, and much of
+Version 0.2.1 follows 0.2.0
+([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)),
+where sign-in and account are complete. It also ships much of
 [0.3.0 – Capture](https://github.com/FuelStat/fuelstat-ios/milestone/2) and
-[0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) is already in.
-It still runs only from Xcode on your own device (free developer account,
+[0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) (Statistik,
+charging stations, vehicle master data, onboarding, CSV export); those
+milestones stay open until they are complete. It still runs only from Xcode on your own device (free developer account,
 valid 7 days); there is no TestFlight or App Store build. Developed against
-Fuelstat server 0.12.1 (device sessions and minimum app version,
+Fuelstat server 0.12.2 (needs 0.12.0 or later for fuel grades and the entry
+list, 0.12.1 for device sessions and the minimum app version,
 FuelStat/fuelstat#117, #118); with an older server the app falls back to the
 7-day sign-in and has no device list.
 
