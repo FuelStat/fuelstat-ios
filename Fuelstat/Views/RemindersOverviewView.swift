@@ -58,6 +58,11 @@ struct AllRemindersView: View {
             }
             .listRowBackground(Theme.card)
 
+            Section {
+                NavigationLink("E-Mail-Benachrichtigungen") { MailNotificationsView() }
+            }
+            .listRowBackground(Theme.card)
+
             Section("Alle Fahrzeuge") {
                 ForEach(entries) { entry in
                     if entry.vehicle.role.canRecord {
@@ -126,6 +131,123 @@ struct AllRemindersView: View {
                 ReminderNotifications.isEnabled = false
                 ReminderNotifications.removeAll()
                 plannedCount = 0
+            }
+        }
+    }
+}
+
+/// Profil → Termine → E-Mail: which occasions the server mails about (`/notifications/preferences`). The mail
+/// server and the sending are the server's job; the app only switches the channels. A different mail server is
+/// entered in the web app.
+struct MailNotificationsView: View {
+    @Environment(AuthSession.self) private var auth
+
+    @State private var preferences: NotificationPreferences?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var isSaving = false
+
+    private func title(_ occasion: NotificationPreferences.Occasion) -> LocalizedStringKey {
+        switch occasion {
+        case .reminders: "Termine"
+        case .odometer: "Kilometerstand nachtragen"
+        case .report: "Monatsbericht"
+        case .inactive: "Lange kein Eintrag"
+        }
+    }
+
+    private func explanation(_ occasion: NotificationPreferences.Occasion) -> LocalizedStringKey {
+        switch occasion {
+        case .reminders: "TÜV, Wartung, Versicherung und Steuer – vorher und noch einmal, wenn überfällig"
+        case .odometer: "Wenn bei einer Tankfüllung der Kilometerstand fehlt"
+        case .report: "Am Monatsanfang: Kosten, Strecke und Verbrauch je Fahrzeug"
+        case .inactive: "Wenn für ein Fahrzeug 30 Tage nichts erfasst wurde"
+        }
+    }
+
+    var body: some View {
+        List {
+            if let preferences {
+                Section {
+                    ForEach(NotificationPreferences.Occasion.allCases) { occasion in
+                        Toggle(isOn: Binding(
+                            get: { self.preferences?.isEmailOn(occasion) ?? false },
+                            set: { change(.email(occasion, $0)) }
+                        )) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                                Text(title(occasion))
+                                Text(explanation(occasion)).font(.footnote).foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(Theme.brand)
+                        .disabled(!preferences.emailAvailable || isSaving)
+                    }
+                } header: {
+                    Text("Per E-Mail")
+                } footer: {
+                    if !preferences.emailAvailable {
+                        Text("Auf diesem Server ist noch kein Mailversand eingerichtet. Einen eigenen Mailserver trägst du in der Web-App ein.")
+                    } else {
+                        Text("Die Mails gehen an die Adresse deines Kontos. Erinnerungen auf diesem iPhone stellst du unter „Termine“ ein.")
+                    }
+                }
+                .listRowBackground(Theme.card)
+
+                Section {
+                    Picker("Vorlauf für Termine", selection: Binding(
+                        get: { self.preferences?.reminderDays ?? 30 },
+                        set: { change(.reminderDays($0)) }
+                    )) {
+                        ForEach(leadDayOptions(including: preferences.reminderDays), id: \.self) { days in
+                            Text(days == 1 ? "1 Tag vorher" : "\(days) Tage vorher").tag(days)
+                        }
+                    }
+                    .tint(Theme.brand)
+                    .disabled(isSaving)
+                } footer: {
+                    Text("Gilt für die Mails zu Terminen.")
+                }
+                .listRowBackground(Theme.card)
+            }
+
+            ErrorSection(message: errorMessage)
+        }
+        .themedBackground()
+        .overlay { if isLoading, preferences == nil { ProgressView() } }
+        .navigationTitle("E-Mail")
+        .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await load() }
+        .task { await load() }
+    }
+
+    private func leadDayOptions(including current: Int) -> [Int] {
+        let options = [1, 3, 7, 14, 30, 60, 90, 180]
+        return options.contains(current) ? options : (options + [current]).sorted()
+    }
+
+    private func load() async {
+        defer { isLoading = false }
+        do {
+            preferences = try await auth.call { try await $0.notificationPreferences(token: $1) }
+            errorMessage = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Sends one change; the answer is the new state, so the switches always show what the server stored.
+    private func change(_ update: NotificationPreferencesUpdate) {
+        isSaving = true
+        errorMessage = nil
+        Task {
+            defer { isSaving = false }
+            do {
+                preferences = try await auth.call { try await $0.updateNotificationPreferences(update, token: $1) }
+            } catch {
+                errorMessage = error.localizedDescription
+                await load()
             }
         }
     }
