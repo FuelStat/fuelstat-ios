@@ -14,6 +14,7 @@ struct ReleaseNote: Identifiable {
             "Links aus E-Mails öffnen die App: E-Mail-Adresse bestätigen und Passwort zurücksetzen gehen direkt in Fuelstat, auch mit dem Code aus der Mail",
             "E-Mail-Benachrichtigungen je Anlass (Termine, Berichte) stellst du unter Profil → Termine ein",
             "Archivierte Fahrzeuge zählen in deinem Tarif unter „Archivierte Fahrzeuge“",
+            "Statistik → Kosten zeigt die Kosten nach Gruppe mit Anteil, die Wartungskosten je 10.000 km und die fünf größten Einzelausgaben",
         ]),
         ReleaseNote(version: "0.2.1", date: "November 2026", items: [
             "Die App braucht jetzt iOS 27 oder neuer",
