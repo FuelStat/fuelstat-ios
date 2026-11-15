@@ -480,7 +480,7 @@ ship anyway) and are named here.
 ```markdown
 ## Test run (docs/testing.md)
 
-- App: 0.2.1 (build 3), commit abc1234
+- App: 0.2.2 (build 4), commit abc1234
 - Device: iPhone 14 Pro, iOS 27.2
 - Date: 2026-12-01
 
