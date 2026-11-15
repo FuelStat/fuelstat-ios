@@ -113,7 +113,7 @@ struct EntriesView: View {
                         }
                         .listRowBackground(Theme.card)
                         .swipeActions(edge: .trailing) {
-                            if vehicle.role.canRecord {
+                            if vehicle.canRecord {
                                 Button("Löschen", systemImage: "trash", role: .destructive) { deleting = item }
                                 Button("Bearbeiten", systemImage: "pencil") { editing = item }
                                     .tint(Theme.brand)

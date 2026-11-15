@@ -26,6 +26,12 @@ enum APIError: LocalizedError, Equatable {
             case "resend_too_soon": String(localized: "Bitte warte eine Minute, bevor du die Mail erneut anforderst.")
             case "invalid_token": String(localized: "Der Code ist ungültig oder wurde schon benutzt.")
             case "token_expired": String(localized: "Der Code ist abgelaufen. Fordere eine neue Mail an.")
+            case "vehicle_archived":
+                String(localized: "Dieses Fahrzeug ist archiviert (verkauft oder stillgelegt) und nur lesbar. Aktiviere es wieder, um etwas zu ändern.")
+            case "invalid_status": String(localized: "Der Status des Fahrzeugs ist ungültig.")
+            case "invalid_saleOdometerKm": String(localized: "Der Kilometerstand beim Verkauf ist ungültig.")
+            case "invalid_decommissionedFrom": String(localized: "Das Datum der Stilllegung ist ungültig.")
+            case "invalid_decommissionedUntil": String(localized: "Das Datum bei „Abgemeldet bis“ ist ungültig.")
             case "already_verified": String(localized: "Deine E-Mail-Adresse ist bereits bestätigt.")
             case "mfa_already_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist bereits aktiv.")
             case "mfa_not_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist nicht aktiv.")
@@ -326,6 +332,11 @@ struct APIClient {
         var input = input
         input.sendsNulls = true
         return try await send("vehicles/\(id)", method: "PATCH", body: input, token: token)
+    }
+
+    /// Archives a vehicle as sold or decommissioned, or reactivates it (FuelStat/fuelstat#79).
+    func changeVehicleStatus(id: String, _ change: VehicleStatusChange, token: String) async throws -> RemoteVehicle {
+        try await send("vehicles/\(id)", method: "PATCH", body: change, token: token)
     }
 
     func setVehicleOrder(id: String, sortOrder: Int, token: String) async throws -> RemoteVehicle {

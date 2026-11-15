@@ -11,6 +11,7 @@ struct RemoteVehicleDetailView: View {
     @State private var latest: [TimelineItem] = []
     @State private var errorMessage: String?
     @State private var showingEdit = false
+    @State private var showingArchive = false
     @State private var showingFillup = false
     @State private var confirmingDelete = false
     @State private var isWorking = false
@@ -51,6 +52,10 @@ struct RemoteVehicleDetailView: View {
 
                     titleBlock(vehicle)
 
+                    if vehicle.isArchived {
+                        ArchiveBanner(vehicle: vehicle, isWorking: isWorking) { reactivate() }
+                    }
+
                     Picker("Ansicht", selection: $segment) {
                         Text("Übersicht").tag(Segment.overview)
                         Text("Einträge").tag(Segment.entries)
@@ -77,7 +82,14 @@ struct RemoteVehicleDetailView: View {
                             Label(vehicle.isShared ? "Zugriff ansehen" : "Fahrzeug teilen", systemImage: "person.2")
                         }
                         .buttonStyle(SecondaryButtonStyle())
-                        // Only the owner may delete the vehicle; the API enforces it.
+                        // Only the owner archives or deletes a vehicle; the API enforces it.
+                        if !vehicle.isShared, !vehicle.isArchived {
+                            Button("Als verkauft oder stillgelegt archivieren", systemImage: "archivebox") {
+                                showingArchive = true
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .disabled(isWorking)
+                        }
                         if !vehicle.isShared {
                             Button("Fahrzeug löschen", systemImage: "trash", role: .destructive) {
                                 confirmingDelete = true
@@ -108,8 +120,8 @@ struct RemoteVehicleDetailView: View {
                 NavigationLink(value: Route.tripLog(vehicle.id)) {
                     Label("Fahrtenbuch", systemImage: "book.closed")
                 }
-                // Master data and photo belong to the owner; the API enforces it.
-                if !vehicle.isShared {
+                // Master data and photo belong to the owner and are locked for archived vehicles; the API enforces it.
+                if !vehicle.isShared, !vehicle.isArchived {
                     Button("Bearbeiten", systemImage: "pencil") { showingEdit = true }
                         .disabled(isWorking)
                 }
@@ -120,6 +132,9 @@ struct RemoteVehicleDetailView: View {
         .task(id: store.entryChanges) { await load() }
         .sheet(isPresented: $showingEdit) {
             RemoteVehicleFormView(store: store, editing: vehicle)
+        }
+        .sheet(isPresented: $showingArchive) {
+            VehicleStatusFormView(store: store, vehicle: vehicle)
         }
         .sheet(isPresented: $showingFillup, onDismiss: { Task { await load() } }) {
             QuickEntryView(store: store, vehicleID: vehicle.id, kind: vehicle.fuelType == .electric ? .charge : .fuel)
@@ -148,7 +163,7 @@ struct RemoteVehicleDetailView: View {
                     LinearGradient(colors: [.black.opacity(0.35), .clear], startPoint: .top, endPoint: .center)
                 }
 
-            if !vehicle.isShared {
+            if !vehicle.isShared, !vehicle.isArchived {
             Menu {
                 Button("Foto auswählen", systemImage: "photo.on.rectangle") { showingPhotoLibrary = true }
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -206,7 +221,7 @@ struct RemoteVehicleDetailView: View {
     private func overview(_ vehicle: RemoteVehicle) -> some View {
         KeyFigureTiles(vehicle: vehicle, stats: store.stats[vehicle.id], odometer: store.currentOdometer(of: vehicle),
                        catalog: store.fuelCatalog)
-        if vehicle.role.canRecord {
+        if vehicle.canRecord {
             PrimaryButton(title: vehicle.fuelType == .electric ? "Laden erfassen" : "Tanken erfassen",
                           systemImage: vehicle.fuelType == .electric ? "bolt.fill" : "fuelpump.fill") {
                 showingFillup = true
@@ -236,6 +251,12 @@ struct RemoteVehicleDetailView: View {
             return
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func reactivate() {
+        run {
+            try await store.setStatus(vehicleID, .reactivated)
         }
     }
 

@@ -8,7 +8,7 @@ struct VehicleManagementView: View {
 
     var body: some View {
         List {
-            if let error = store.loadError, !store.vehicles.isEmpty {
+            if let error = store.loadError, !store.allVehicles.isEmpty {
                 Label(error, systemImage: "wifi.exclamationmark")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -36,6 +36,21 @@ struct VehicleManagementView: View {
                     .foregroundStyle(.secondary)
                     .listRowBackground(Color.clear)
             }
+            if !store.archivedVehicles.isEmpty {
+                Section {
+                    ForEach(store.archivedVehicles) { vehicle in
+                        NavigationLink(value: Route.vehicle(vehicle.id)) {
+                            VehicleRow(vehicle: vehicle, store: store)
+                        }
+                        .listRowBackground(Theme.card)
+                        .moveDisabled(true)
+                    }
+                } header: {
+                    Text("Archiv")
+                } footer: {
+                    Text("Verkaufte und stillgelegte Fahrzeuge: Daten und Statistiken bleiben lesbar, ändern lässt sich nichts, bis du das Fahrzeug wieder aktivierst.")
+                }
+            }
         }
         .themedBackground()
         .navigationTitle("Fahrzeuge")
@@ -57,7 +72,7 @@ struct VehicleManagementView: View {
             }
         }
         .overlay {
-            if store.vehicles.isEmpty {
+            if store.allVehicles.isEmpty {
                 VehicleListPlaceholder(store: store)
             }
         }
@@ -92,6 +107,11 @@ private struct VehicleRow: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+                if let summary = vehicle.archiveSummary {
+                    Label(summary, systemImage: "archivebox")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 if vehicle.isShared { SharedVehicleBadge(vehicle: vehicle) }
             }
         }
@@ -104,6 +124,7 @@ private struct VehicleRow: View {
         var parts = [vehicle.name, vehicle.fuelType.label]
         if let plate = vehicle.licensePlate { parts.append(String(localized: "Kennzeichen \(plate)")) }
         if let odometer { parts.append(String(localized: "Kilometerstand \(odometer)")) }
+        if let summary = vehicle.archiveSummary { parts.append(summary) }
         if vehicle.isShared { parts.append(SharedVehicleBadge.text(for: vehicle)) }
         return parts.joined(separator: ", ")
     }

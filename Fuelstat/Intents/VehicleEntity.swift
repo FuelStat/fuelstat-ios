@@ -75,6 +75,7 @@ struct VehicleQuery: EntityStringQuery {
 
     static func all() async throws -> [VehicleEntity] {
         try await IntentAPI.call { try await $0.vehicles(token: $1) }
+            .filter { !$0.isArchived }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             .map(VehicleEntity.init)
     }

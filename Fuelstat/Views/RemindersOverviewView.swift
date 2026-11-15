@@ -65,7 +65,7 @@ struct AllRemindersView: View {
 
             Section("Alle Fahrzeuge") {
                 ForEach(entries) { entry in
-                    if entry.vehicle.role.canRecord {
+                    if entry.vehicle.canRecord {
                         Button { completing = entry } label: { row(entry) }
                             .buttonStyle(.plain)
                             .accessibilityHint(Text("Trägt den Termin als erledigt ein"))

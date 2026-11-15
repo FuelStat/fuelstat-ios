@@ -81,6 +81,7 @@ struct PlanView: View {
                             isAvailable: value))
         }
         limit("maxVehicles", "Fahrzeuge")
+        limit("maxArchivedVehicles", "Archivierte Fahrzeuge")
         limit("customCategories", "Eigene Kategorien")
         flag("premiumCategories", "Weitere Ausgabenkategorien")
         limit("tripCategories", "Zwecke im Fahrtenbuch", unlimitedText: String(localized: "alle"))

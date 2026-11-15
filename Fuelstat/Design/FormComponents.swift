@@ -149,7 +149,7 @@ struct EntryVehiclePicker: View {
     @Binding var vehicleID: String
 
     /// Vehicles the user may record entries for; the API enforces the rights.
-    private var vehicles: [RemoteVehicle] { store.vehicles.filter(\.role.canRecord) }
+    private var vehicles: [RemoteVehicle] { store.vehicles.filter(\.canRecord) }
 
     var body: some View {
         if vehicles.count > 1 {
