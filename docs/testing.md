@@ -147,11 +147,30 @@ truth, so figures must match the web app exactly.
 - [ ] Create a vehicle with all fields; it appears in the list, in the
       vehicle switcher and in the web app
 - [ ] Edit name and master data; changes are shown everywhere
+- [ ] Form sections Kauf und Verkauf, Wartung (Intervalle), Versicherung und
+      Steuer (Beitrag, Steuer, Fälligkeitsmonat) and Reifen save and show up
+      on the vehicle page and in the web app; clearing a field removes it
+- [ ] "Kraftstoffsorten": a new vehicle starts with the server's suggestion
+      for its drive type; ticking a second grade (e.g. Super E5 + Autogas)
+      and choosing the default saves; the entry sheet then offers both;
+      changing the drive type resets the suggestion; a grade that does not
+      fit shows the server's message
+- [ ] Profil → Fahrzeuge → "Bearbeiten": dragging own vehicles changes the
+      order in the list, the vehicle switcher and the web app; shared
+      vehicles cannot be moved and stay at the end
 - [ ] Vehicle switcher: the choice is remembered after restarting the app
 - [ ] Plan limit: creating one vehicle more than the plan allows shows the
       API's message, the app does not block on its own
 - [ ] Delete a vehicle with entries ("Fahrzeug und alle Einträge löschen"),
       with confirmation; it is gone in the app and in the web app
+
+### 4a. Tarif
+
+- [ ] Profil → Tarif shows the booked plan, "Läuft bis" when it has an end and
+      the rights as the web app lists them (Fahrzeuge, eigene Kategorien,
+      Teilen …)
+- [ ] Server without plan limits: the footer says all Plus functions are open
+- [ ] Neither a purchase button nor a link to buy a plan anywhere in the app
 
 ### 5. Vehicle photo
 

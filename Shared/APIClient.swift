@@ -99,6 +99,16 @@ enum APIError: LocalizedError, Equatable {
             case "member_not_found": String(localized: "Dieses Mitglied hat keinen Zugriff mehr.")
             case "owner_cannot_leave": String(localized: "Als Besitzer kannst du das Fahrzeug nicht verlassen.")
             case "invalid_role": String(localized: "Die Rolle ist ungültig.")
+            case "invalid_fuels": String(localized: "Diese Kraftstoffsorten passen nicht zur Antriebsart.")
+            case "invalid_defaultFuel": String(localized: "Die Standardsorte muss eine der gewählten Sorten sein.")
+            case "invalid_purchaseDate", "invalid_saleDate": String(localized: "Das Datum von Kauf oder Verkauf ist ungültig.")
+            case "invalid_purchasePrice", "invalid_salePrice": String(localized: "Der Kauf- oder Verkaufspreis ist ungültig.")
+            case "invalid_serviceIntervalMonths", "invalid_oilIntervalMonths":
+                String(localized: "Das Intervall in Monaten muss zwischen 1 und 60 liegen.")
+            case "invalid_serviceIntervalKm", "invalid_oilIntervalKm":
+                String(localized: "Das Intervall in Kilometern muss zwischen 1.000 und 100.000 liegen.")
+            case "invalid_insurancePremium", "invalid_taxAmount": String(localized: "Der Betrag für Versicherung oder Steuer ist ungültig.")
+            case "invalid_insuranceDueMonth", "invalid_taxDueMonth": String(localized: "Der Fälligkeitsmonat muss zwischen 1 und 12 liegen.")
             default: String(localized: "Serverfehler (\(code)).")
             }
         case .invalidResponse:
@@ -293,6 +303,10 @@ struct APIClient {
         var input = input
         input.sendsNulls = true
         return try await send("vehicles/\(id)", method: "PATCH", body: input, token: token)
+    }
+
+    func setVehicleOrder(id: String, sortOrder: Int, token: String) async throws -> RemoteVehicle {
+        try await send("vehicles/\(id)", method: "PATCH", body: VehicleOrderPatch(sortOrder: sortOrder), token: token)
     }
 
     func setVehicleImage(id: String, imageURL: String?, token: String) async throws -> RemoteVehicle {

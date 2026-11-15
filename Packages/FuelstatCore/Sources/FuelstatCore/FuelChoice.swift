@@ -10,16 +10,23 @@ public struct FuelOption: Equatable, Hashable, Sendable, Identifiable {
     public let unit: String
     /// Fuel type for the Tankerkönig price search (`e5`, `e10`, `diesel`), nil when there are no prices.
     public let tankerkoenig: String?
+    /// Premium grades show their surcharge in the statistics.
+    public let premium: Bool
+    /// Example products, e.g. "z. B. Ultimate Diesel, V-Power Diesel".
+    public let hint: String?
 
     public var id: String { key }
     public var isCharging: Bool { unit == "kwh" }
 
-    public init(key: String, name: String, energy: String, unit: String, tankerkoenig: String?) {
+    public init(key: String, name: String, energy: String, unit: String, tankerkoenig: String?,
+                premium: Bool = false, hint: String? = nil) {
         self.key = key
         self.name = name
         self.energy = energy
         self.unit = unit
         self.tankerkoenig = tankerkoenig
+        self.premium = premium
+        self.hint = hint
     }
 }
 

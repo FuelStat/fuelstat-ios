@@ -52,6 +52,7 @@ enum Route: Hashable {
     case sharing(String)
     case invitations
     case categories
+    case plan
     case allReminders
     /// One entry of a vehicle, opened from Start, the vehicle page or the trip log.
     case entry(vehicleID: String, item: TimelineItem)
@@ -228,6 +229,7 @@ extension View {
             case .sharing(let id): VehicleSharingView(store: store, vehicleID: id)
             case .invitations: InvitationsView(store: store)
             case .categories: CategoriesView(store: store)
+            case .plan: PlanView()
             case .allReminders: AllRemindersView(store: store)
             // The other screens reload through `store.entryChanges`.
             case .entry(let vehicleID, let item): EntryDetailView(store: store, vehicleID: vehicleID, item: item) {}

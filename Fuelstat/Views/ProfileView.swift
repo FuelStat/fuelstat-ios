@@ -71,6 +71,15 @@ struct ProfileView: View {
                     NavigationLink(value: Route.allReminders) {
                         Label("Termine und Erinnerungen", systemImage: "calendar.badge.clock")
                     }
+                    if let plan = auth.user?.plan {
+                        NavigationLink(value: Route.plan) {
+                            LabeledContent {
+                                Text(verbatim: PlanView.name(of: plan.effectivePlan))
+                            } label: {
+                                Label("Tarif", systemImage: "star.circle")
+                            }
+                        }
+                    }
                     NavigationLink(value: Route.categories) {
                         Label("Kategorien", systemImage: "tag")
                     }

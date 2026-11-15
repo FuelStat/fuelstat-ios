@@ -146,7 +146,13 @@ self-hosted servers can be entered on the sign-in screen):
   a full-screen "Bitte aktualisiere Fuelstat" blocks the app, below
   `recommended_version` Profil shows a hint
 - Vehicle page with photo, key figures, due dates, entries, chart and master data
-- Create, edit and delete vehicles; plan limits from the API are shown as a message
+- Create, edit and delete vehicles; plan limits from the API are shown as a message;
+  the form covers the web app's master data: drive type and fuel grades with a
+  default, registration, tank and battery, purchase and sale, service and oil
+  intervals, insurance, tax and tyres; own vehicles can be reordered under
+  Profil → Fahrzeuge (`sortOrder`, FuelStat/fuelstat#181)
+- Profil → Tarif: booked plan, end date and what the plan allows from `/whoami`;
+  no purchase and no link to one (#32)
 - Several fuel types per vehicle (FuelStat/fuelstat#140, catalog from
   `GET /fuels`): the entry sheet offers the vehicle's types (e.g. Super E5 and
   Autogas) and sends `fuel`; the price is prefilled from the last fill-up of
