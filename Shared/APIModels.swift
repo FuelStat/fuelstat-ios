@@ -338,6 +338,23 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
     let batteryCapacity: Double?
     let tireSizeSummer: String?
     let tireSizeWinter: String?
+    /// Calendar dates `YYYY-MM-DD`.
+    let purchaseDate: String?
+    let purchasePrice: Double?
+    let saleDate: String?
+    let salePrice: Double?
+    let serviceIntervalMonths: Int?
+    let serviceIntervalKm: Int?
+    let oilIntervalMonths: Int?
+    let oilIntervalKm: Int?
+    let insuranceCompany: String?
+    /// Per year.
+    let insurancePremium: Double?
+    /// 1–12
+    let insuranceDueMonth: Int?
+    /// Per year.
+    let taxAmount: Double?
+    let taxDueMonth: Int?
     /// Fuel types of the vehicle (FuelStat/fuelstat#140), e.g. `["super_e5", "lpg"]`; empty on older servers.
     let fuels: [String]
     /// The fuel type preselected for new entries.
@@ -363,6 +380,13 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
         case batteryCapacity = "battery_capacity"
         case tireSizeSummer = "tire_size_summer"
         case tireSizeWinter = "tire_size_winter"
+        case purchaseDate = "purchase_date", purchasePrice = "purchase_price"
+        case saleDate = "sale_date", salePrice = "sale_price"
+        case serviceIntervalMonths = "service_interval_months", serviceIntervalKm = "service_interval_km"
+        case oilIntervalMonths = "oil_interval_months", oilIntervalKm = "oil_interval_km"
+        case insuranceCompany = "insurance_company", insurancePremium = "insurance_premium"
+        case insuranceDueMonth = "insurance_due_month"
+        case taxAmount = "tax_amount", taxDueMonth = "tax_due_month"
     }
 
     init(from decoder: Decoder) throws {
@@ -382,6 +406,19 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
         batteryCapacity = c.number(.batteryCapacity)
         tireSizeSummer = c.text(.tireSizeSummer)
         tireSizeWinter = c.text(.tireSizeWinter)
+        purchaseDate = c.text(.purchaseDate).map { String($0.prefix(10)) }
+        purchasePrice = c.number(.purchasePrice)
+        saleDate = c.text(.saleDate).map { String($0.prefix(10)) }
+        salePrice = c.number(.salePrice)
+        serviceIntervalMonths = c.number(.serviceIntervalMonths).map { Int($0) }
+        serviceIntervalKm = c.number(.serviceIntervalKm).map { Int($0) }
+        oilIntervalMonths = c.number(.oilIntervalMonths).map { Int($0) }
+        oilIntervalKm = c.number(.oilIntervalKm).map { Int($0) }
+        insuranceCompany = c.text(.insuranceCompany)
+        insurancePremium = c.number(.insurancePremium)
+        insuranceDueMonth = c.number(.insuranceDueMonth).map { Int($0) }
+        taxAmount = c.number(.taxAmount)
+        taxDueMonth = c.number(.taxDueMonth).map { Int($0) }
         fuels = (try? c.decodeIfPresent([String].self, forKey: .fuels)) ?? []
         defaultFuel = c.text(.defaultFuel)
         role = c.text(.role).flatMap(VehicleRole.init(rawValue:)) ?? .owner
@@ -409,12 +446,34 @@ struct VehicleInput: Encodable {
     var odometerKm: Double?
     var tankCapacity: Double?
     var batteryCapacity: Double?
+    /// `YYYY-MM-DD`
+    var purchaseDate: String?
+    var purchasePrice: Double?
+    var saleDate: String?
+    var salePrice: Double?
+    var serviceIntervalMonths: Int?
+    var serviceIntervalKm: Int?
+    var oilIntervalMonths: Int?
+    var oilIntervalKm: Int?
+    var insuranceCompany: String?
+    var insurancePremium: Double?
+    var insuranceDueMonth: Int?
+    var taxAmount: Double?
+    var taxDueMonth: Int?
+    var tireSizeSummer: String?
+    var tireSizeWinter: String?
+    /// Fuel grades (FuelStat/fuelstat#140); nil leaves them to the API (create) or unchanged (PATCH).
+    var fuels: [String]?
+    var defaultFuel: String?
     /// true for PATCH.
     var sendsNulls = false
 
     enum CodingKeys: String, CodingKey {
         case name, fuelType, brand, model, year, licensePlate, vin, firstRegistration
         case odometerKm, tankCapacity, batteryCapacity
+        case purchaseDate, purchasePrice, saleDate, salePrice, serviceIntervalMonths, serviceIntervalKm
+        case oilIntervalMonths, oilIntervalKm, insuranceCompany, insurancePremium, insuranceDueMonth
+        case taxAmount, taxDueMonth, tireSizeSummer, tireSizeWinter, fuels, defaultFuel
     }
 
     func encode(to encoder: Encoder) throws {
@@ -437,6 +496,24 @@ struct VehicleInput: Encodable {
         try put(odometerKm, .odometerKm)
         try put(tankCapacity, .tankCapacity)
         try put(batteryCapacity, .batteryCapacity)
+        try put(purchaseDate, .purchaseDate)
+        try put(purchasePrice, .purchasePrice)
+        try put(saleDate, .saleDate)
+        try put(salePrice, .salePrice)
+        try put(serviceIntervalMonths, .serviceIntervalMonths)
+        try put(serviceIntervalKm, .serviceIntervalKm)
+        try put(oilIntervalMonths, .oilIntervalMonths)
+        try put(oilIntervalKm, .oilIntervalKm)
+        try put(insuranceCompany, .insuranceCompany)
+        try put(insurancePremium, .insurancePremium)
+        try put(insuranceDueMonth, .insuranceDueMonth)
+        try put(taxAmount, .taxAmount)
+        try put(taxDueMonth, .taxDueMonth)
+        try put(tireSizeSummer, .tireSizeSummer)
+        try put(tireSizeWinter, .tireSizeWinter)
+        // Grades are never cleared: without them the API keeps (PATCH) or suggests (create) its own.
+        if let fuels { try c.encode(fuels, forKey: .fuels) }
+        if let defaultFuel { try c.encode(defaultFuel, forKey: .defaultFuel) }
     }
 }
 
@@ -895,18 +972,24 @@ struct FuelCatalog: Decodable {
         let energy: String
         let unit: String
         let tankerkoenig: String?
+        let premium: Bool?
+        let hint: String?
     }
 
     let fuels: [FuelOption]
     let energies: [Energy]
+    /// Suggested grades per drive type (`fuelTypeDefaults`), the first one is the default.
+    let defaults: [String: [String]]
 
-    enum CodingKeys: String, CodingKey { case fuels, energies }
+    enum CodingKeys: String, CodingKey { case fuels, energies, fuelTypeDefaults }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         fuels = try c.decode([Lossy<Fuel>].self, forKey: .fuels).compactMap(\.value).map {
-            FuelOption(key: $0.key, name: $0.name, energy: $0.energy, unit: $0.unit, tankerkoenig: $0.tankerkoenig)
+            FuelOption(key: $0.key, name: $0.name, energy: $0.energy, unit: $0.unit, tankerkoenig: $0.tankerkoenig,
+                       premium: $0.premium ?? false, hint: $0.hint)
         }
+        defaults = (try? c.decodeIfPresent([String: [String]].self, forKey: .fuelTypeDefaults)) ?? [:]
         energies = (try? c.decodeIfPresent([Lossy<Energy>].self, forKey: .energies))?.compactMap(\.value) ?? []
     }
 
