@@ -38,6 +38,29 @@ public struct VehicleCosts: Decodable, Equatable, Sendable {
         public var id: String { energy }
     }
 
+    /// Sum of one cost group (`kraftstoff`, `fix`, `wartung`, `unterwegs`, `sonstiges`); names, icons and colours
+    /// come from `GET /categories` (FuelStat/fuelstat#180).
+    public struct Group: Equatable, Sendable, Identifiable {
+        public let key: String
+        public let total: Double
+        public let count: Int
+        /// Share of all costs in the period in percent.
+        public let share: Double?
+        public var id: String { key }
+    }
+
+    /// One of the biggest single expenses of the period (no fuelling, charging, trips or odometer notes).
+    public struct Expense: Equatable, Sendable, Identifiable {
+        /// Valid for `GET /entries/:id`.
+        public let id: String
+        public let date: Date?
+        /// Category key.
+        public let category: String
+        public let cost: Double
+        public let vendor: String?
+        public let description: String?
+    }
+
     public let year: Int?
     public let currency: String
     public let total: Sums
@@ -57,10 +80,16 @@ public struct VehicleCosts: Decodable, Equatable, Sendable {
     public let energies: [EnergyCost]
     /// Years with costs (whole period, independent of `year`), latest first.
     public let years: [Int]
+    /// Sums per cost group for the period, in the API's order; empty on servers before FuelStat/fuelstat#180.
+    public let groups: [Group]
+    /// Maintenance costs per 10,000 km; nil without a distance (never 0).
+    public let maintenancePer10000Km: Double?
+    /// The biggest single expenses of the period, at most five, biggest first.
+    public let largestExpenses: [Expense]
 
     enum CodingKeys: String, CodingKey {
         case year, currency, total, distanceKm, costPerKm, perMonth, monthCount, currentMonth, previousMonth
-        case months, categories, energies, years
+        case months, categories, energies, years, groups, maintenancePer10000Km, largestExpenses
     }
 
     private enum CostPerKmKeys: String, CodingKey { case energy, total }
@@ -86,6 +115,9 @@ public struct VehicleCosts: Decodable, Equatable, Sendable {
         categories = c.lenientList(.categories, of: Category.self)
         energies = c.lenientList(.energies, of: EnergyCost.self)
         years = c.lenientList(.years, of: Int.self)
+        groups = c.lenientList(.groups, of: Group.self)
+        maintenancePer10000Km = c.lenientNumber(.maintenancePer10000Km)
+        largestExpenses = c.lenientList(.largestExpenses, of: Expense.self)
     }
 }
 
@@ -130,6 +162,42 @@ extension VehicleCosts.Category: Decodable {
         self.key = key
         total = c.lenientNumber(.total) ?? 0
         count = c.lenientInt(.count) ?? 0
+    }
+}
+
+extension VehicleCosts.Group: Decodable {
+    enum CodingKeys: String, CodingKey { case key, total, count, share }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        guard let key = c.lenientText(.key) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: c.codingPath, debugDescription: "key"))
+        }
+        self.key = key
+        total = c.lenientNumber(.total) ?? 0
+        count = c.lenientInt(.count) ?? 0
+        share = c.lenientNumber(.share)
+    }
+}
+
+extension VehicleCosts.Expense: Decodable {
+    enum CodingKeys: String, CodingKey { case id, at, category, cost, vendor, description }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        guard let id = c.lenientText(.id), let category = c.lenientText(.category) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: c.codingPath, debugDescription: "expense"))
+        }
+        self.id = id
+        self.category = category
+        date = c.lenientText(.at).flatMap { text in
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+        }
+        cost = c.lenientNumber(.cost) ?? 0
+        vendor = c.lenientText(.vendor)
+        description = c.lenientText(.description)
     }
 }
 

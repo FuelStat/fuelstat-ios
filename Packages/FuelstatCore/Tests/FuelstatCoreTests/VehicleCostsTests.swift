@@ -93,3 +93,45 @@ struct VehicleCostsTests {
         #expect(PeriodKey.monthStart("2026-13") == nil)
     }
 }
+
+struct VehicleCostsGroupTests {
+    /// New fields of FuelStat/fuelstat#180 as the issue shows them.
+    private let json = Data("""
+    {
+      "currency": "EUR", "total": { "energy": 110, "expenses": 1000, "total": 1110 },
+      "groups": [
+        { "key": "kraftstoff", "total": 110, "count": 2, "share": 9.9 },
+        { "key": "wartung", "total": "690.00", "count": 3, "share": 62.2 },
+        { "key": "unterwegs", "total": 0, "count": 0, "share": 0 }
+      ],
+      "maintenancePer10000Km": 690,
+      "largestExpenses": [
+        { "id": "a1", "at": "2026-02-10T12:00:00.000Z", "category": "Reifen", "cost": 400, "vendor": null,
+          "description": "Winterreifen" },
+        { "id": "a2", "at": "2026-01-05T08:30:00Z", "category": "Versicherung", "cost": "300.00", "vendor": "HUK" },
+        { "category": "ohne id", "cost": 1 }
+      ]
+    }
+    """.utf8)
+
+    @Test func decodesGroupsMaintenanceAndLargestExpenses() throws {
+        let c = try JSONDecoder().decode(VehicleCosts.self, from: json)
+        #expect(c.groups.map(\.key) == ["kraftstoff", "wartung", "unterwegs"])
+        #expect(c.groups[1].total == 690, "numerics may arrive as strings")
+        #expect(c.groups[0].share == 9.9)
+        #expect(c.maintenancePer10000Km == 690)
+        #expect(c.largestExpenses.map(\.id) == ["a1", "a2"], "an unreadable row is skipped")
+        #expect(c.largestExpenses[0].description == "Winterreifen")
+        #expect(c.largestExpenses[0].vendor == nil)
+        #expect(c.largestExpenses[0].date != nil)
+        #expect(c.largestExpenses[1].cost == 300)
+        #expect(c.largestExpenses[1].date != nil, "dates without fractions work too")
+    }
+
+    @Test func olderServersWithoutTheFieldsStillDecode() throws {
+        let c = try JSONDecoder().decode(VehicleCosts.self, from: Data(#"{"currency":"EUR"}"#.utf8))
+        #expect(c.groups.isEmpty)
+        #expect(c.maintenancePer10000Km == nil)
+        #expect(c.largestExpenses.isEmpty)
+    }
+}
