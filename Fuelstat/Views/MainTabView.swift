@@ -99,7 +99,8 @@ private struct MainTabs: View {
                 StartView(store: store, selectedID: selection, refresh: refresh,
                           onShowEntries: { tab = .entries },
                           onShowProfile: { tab = .profile },
-                          onManageVehicles: manageVehicles)
+                          onManageVehicles: manageVehicles,
+                          onAddEntry: { openEntry(nil) })
             }
 
             Tab("Einträge", systemImage: "list.bullet.rectangle", value: AppTab.entries) {
