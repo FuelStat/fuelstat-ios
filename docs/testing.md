@@ -262,8 +262,23 @@ truth, so figures must match the web app exactly.
 ### 8. Statistik, Termine and reminders
 
 - [ ] Key figures (Ø Verbrauch, Zuletzt with trend arrow, Ø Preis) equal the
-      web app's values for the same vehicle. Costs per km and other cost
-      figures follow with #6 (0.4.0)
+      web app's values for the same vehicle
+- [ ] Statistik → "Verbrauch": per energy Ø, lowest/highest, amount bought,
+      costs with Ø price and CO₂ equal the web app's "Statistiken" tab; the
+      monthly chart ("Verbrauch je Monat"), "Jahresübersicht" and, with enough
+      entries, "Energiekosten je 100 km" (best and worst month) are there
+- [ ] Plug-in hybrid: "Energiekosten €/100 km" is the first figure, petrol and
+      electricity have their own cards; the energy fuelled on the side says
+      "nur nebenbei getankt"
+- [ ] Vehicle with several fuel grades (e.g. E5 and E10): "Preise je Sorte"
+      lists price, amount, share and the premium surcharge
+- [ ] Statistik → "Kosten": totals, €/km, per month and "Laufender Monat"
+      equal the web app's "Ausgaben" tab; year chips switch the period; the
+      chart "Ausgaben je Monat" is stacked by category with the category
+      colours; "Kostenstruktur" lists every category with amount and count
+- [ ] "Jahresvergleich" appears with "Gesamt" selected and at least two years
+- [ ] Vehicle without entries: "Noch keine Kosten …", no empty charts
+- [ ] VoiceOver reads each chart's summary and the rows as one line each
 - [ ] Chart "Verbrauch je Tankfüllung" shows one point per full fill-up;
       "Keine Werte in diesem Zeitraum." when there are none
 - [ ] Due dates (`/reminders`) on Start and on the vehicle page match the web

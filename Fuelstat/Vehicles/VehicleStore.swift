@@ -63,6 +63,14 @@ final class VehicleStore {
         return loaded
     }
 
+    func consumption(of id: String) async throws -> VehicleConsumption {
+        try await auth.call { try await $0.consumption(vehicleID: id, token: $1) }
+    }
+
+    func costs(of id: String, year: Int?) async throws -> VehicleCosts {
+        try await auth.call { try await $0.costs(vehicleID: id, year: year, token: $1) }
+    }
+
     func vehicle(_ id: String) -> RemoteVehicle? {
         vehicles.first { $0.id == id }
     }
