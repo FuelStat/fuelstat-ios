@@ -278,6 +278,20 @@ truth, so figures must match the web app exactly.
       vehicle, the entries have no edit actions
 - [ ] Member leaves the vehicle ("Fahrzeug verlassen"); owner removes a member
 
+### 7d. CSV export of the entries
+
+- [ ] Einträge → "Einträge exportieren": the sheet lists the years with
+      entries and the number of entries of the chosen period
+- [ ] "CSV teilen" opens the share sheet with `<Fahrzeugname>[_<Jahr>].csv`;
+      save it to Files and open it in Numbers or Excel: German headers,
+      decimal comma, dates `TT.MM.JJJJ`, umlauts correct
+- [ ] Same vehicle and year as the web app's export (`export.php`): same
+      columns and the same rows (trips are not part of it)
+- [ ] Plug-in hybrid: columns "Einheit" and the charging columns; vehicle with
+      several fuel grades: column "Sorte"
+- [ ] A note starting with `=` or `+` is exported with a leading apostrophe
+- [ ] Vehicle without entries: "CSV teilen" is disabled
+
 ### 8. Statistik, Termine and reminders
 
 - [ ] Key figures (Ø Verbrauch, Zuletzt with trend arrow, Ø Preis) equal the

@@ -24,6 +24,7 @@ struct EntriesView: View {
     @State private var search = ""
     @State private var deleting: TimelineItem?
     @State private var editing: TimelineItem?
+    @State private var exportingVehicle: RemoteVehicle?
     /// Changes after an entry was edited or deleted on its detail page.
     @State private var localRefresh = 0
 
@@ -149,11 +150,15 @@ struct EntriesView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("Einträge exportieren", systemImage: "square.and.arrow.up") { exportingVehicle = vehicle }
                 NavigationLink(value: Route.tripLog(vehicle.id)) {
                     Label("Fahrtenbuch", systemImage: "book.closed")
                 }
             }
+        }
+        .sheet(item: $exportingVehicle) { vehicle in
+            EntryExportView(store: store, vehicle: vehicle)
         }
         .refreshable { await reload(vehicle.id) }
         .task(id: "\(vehicle.id)-\(refresh)-\(localRefresh)-\(store.entryChanges)-\(filter?.rawValue ?? "")-\(search)") {
