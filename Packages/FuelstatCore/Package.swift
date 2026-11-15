@@ -1,9 +1,9 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.4
 import PackageDescription
 
 let package = Package(
     name: "FuelstatCore",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    platforms: [.iOS(.v27), .macOS(.v14)],
     products: [
         .library(name: "FuelstatCore", targets: ["FuelstatCore"])
     ],

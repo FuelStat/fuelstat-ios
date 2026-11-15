@@ -1,8 +1,11 @@
 import CoreLocation
 
 /// One-off location request for the station search. Asks for "while using the app" permission when needed.
+///
+/// Uses `CLServiceSession` and `CLLocationUpdate.liveUpdates()`: the session asks for permission, the first
+/// usable update is the answer.
 @MainActor
-final class LocationProvider: NSObject, CLLocationManagerDelegate {
+final class LocationProvider {
     enum Failure: LocalizedError {
         case denied
         case unavailable
@@ -17,16 +20,8 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
         }
     }
 
+    /// Only read for the permission and the last known location; updates come from `liveUpdates()`.
     private let manager = CLLocationManager()
-    private var authorization: CheckedContinuation<Void, Never>?
-    private var location: CheckedContinuation<CLLocation, Error>?
-
-    override init() {
-        super.init()
-        manager.delegate = self
-        // A few hundred metres are enough to find the station you are standing at.
-        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-    }
 
     /// True when the user already allowed location access, so asking for the location shows no prompt.
     var isAuthorized: Bool {
@@ -34,44 +29,32 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
     }
 
     func currentLocation() async throws -> CLLocation {
-        if manager.authorizationStatus == .notDetermined {
-            await withCheckedContinuation { authorization = $0; manager.requestWhenInUseAuthorization() }
-        }
-        switch manager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways: break
-        default: throw Failure.denied
-        }
-        if let recent = manager.location, recent.timestamp.timeIntervalSinceNow > -120,
+        // A few hundred metres and two minutes are enough to find the station you are standing at.
+        if isAuthorized, let recent = manager.location, recent.timestamp.timeIntervalSinceNow > -120,
            recent.horizontalAccuracy >= 0, recent.horizontalAccuracy < 500 {
             return recent
         }
-        return try await withCheckedThrowingContinuation { continuation in
-            location?.resume(throwing: Failure.unavailable)
-            location = continuation
-            manager.requestLocation()
-        }
-    }
-
-    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        MainActor.assumeIsolated {
-            guard manager.authorizationStatus != .notDetermined else { return }
-            authorization?.resume()
-            authorization = nil
-        }
-    }
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        MainActor.assumeIsolated {
-            guard let latest = locations.last else { return }
-            location?.resume(returning: latest)
-            location = nil
-        }
-    }
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        MainActor.assumeIsolated {
-            location?.resume(throwing: Failure.unavailable)
-            location = nil
+        let session = CLServiceSession(authorization: .whenInUse)
+        defer { session.invalidate() }
+        return try await withThrowingTaskGroup(of: CLLocation.self) { group in
+            group.addTask {
+                for try await update in CLLocationUpdate.liveUpdates() {
+                    if update.authorizationDenied || update.authorizationDeniedGlobally || update.authorizationRestricted {
+                        throw Failure.denied
+                    }
+                    if let location = update.location { return location }
+                }
+                throw Failure.unavailable
+            }
+            group.addTask {
+                // Without a fix after a while (no GPS, flight mode) give up instead of waiting forever. Long
+                // enough to include the permission prompt on first use.
+                try await Task.sleep(for: .seconds(45))
+                throw Failure.unavailable
+            }
+            defer { group.cancelAll() }
+            guard let location = try await group.next() else { throw Failure.unavailable }
+            return location
         }
     }
 }

@@ -1,6 +1,6 @@
 # Fuelstat iOS – notes for Claude and other agents
 
-Native iPhone app for Fuelstat (SwiftUI, iOS 17+). The backend and the web app
+Native iPhone app for Fuelstat (SwiftUI, iOS 27+, built with Xcode 27). The backend and the web app
 live in [FuelStat/fuelstat](https://github.com/FuelStat/fuelstat).
 
 ## Scope and goal

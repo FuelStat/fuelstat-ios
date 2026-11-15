@@ -43,9 +43,8 @@ struct SafariView: UIViewControllerRepresentable {
     let url: URL
 
     func makeUIViewController(context: Context) -> SFSafariViewController {
-        let controller = SFSafariViewController(url: url)
-        controller.preferredControlTintColor = UIColor(Theme.brand)
-        return controller
+        // No control tint: on iOS 26+ it would fight the system's Liquid Glass.
+        SFSafariViewController(url: url)
     }
 
     func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}

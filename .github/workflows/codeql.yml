@@ -24,7 +24,7 @@ concurrency:
 jobs:
   analyze:
     name: Analyze Swift
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 30
 
     permissions:
@@ -35,6 +35,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+
+      - name: Select Xcode 27
+        # The app targets iOS 27 (#59): xcode-27 image (macOS 27), newest stable Xcode 27 on it.
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -vi beta | sort -V | tail -n 1)
+          if [ -z "$xcode" ]; then
+            echo "::error::No Xcode 27 on this runner image"; ls -d /Applications/Xcode*.app; exit 1
+          fi
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+          swift --version
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
