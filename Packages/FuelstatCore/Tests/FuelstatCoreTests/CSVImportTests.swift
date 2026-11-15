@@ -315,6 +315,16 @@ struct CSVImportTests {
         #expect(result.fillups.map(\.isFull) == [true, false])
     }
 
+    @Test func everyFullColumnNameOfTheAPIExportIsRecognised() {
+        // Header names of GET /vehicles/:id/export (docs/api.md): the "full" column per drive type.
+        for name in ["Vollgetankt", "Vollgeladen", "Voll getankt/geladen", "Voll"] {
+            let mapping = CSVImport.detectMapping(header: ["Datum", "Kategorie", "Menge", "Kosten (EUR)", name])
+            #expect(mapping[.full] == 4, "\(name)")
+        }
+        let partial = plan("Datum;Kategorie;Menge (l);Kosten (EUR);Voll getankt/geladen\n01.01.2026;Tankfüllung;10;5;nein\n")
+        #expect(partial.fillups[0].isFull == false)
+    }
+
     @Test func templatesAreImportable() {
         for type in ["diesel", "electric", "phev", "cng"] {
             let table = CSVTable.read(CSVImport.template(fuelType: type))

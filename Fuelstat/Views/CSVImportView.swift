@@ -179,10 +179,14 @@ final class CSVImportModel {
         defer { isChecking = false }
         do {
             for chunk in plan.fillupChunks {
-                try await check(fillups: chunk.items, entries: [], lines: plan.fillupLines, offset: chunk.offset)
+                try await check(chunk.items, lines: plan.fillupLines, offset: chunk.offset) { items in
+                    try await self.store.importRows(into: self.vehicle.id, fillups: items, entries: [], dryRun: true)
+                }
             }
             for chunk in plan.entryChunks {
-                try await check(fillups: [], entries: chunk.items, lines: plan.entryLines, offset: chunk.offset)
+                try await check(chunk.items, lines: plan.entryLines, offset: chunk.offset) { items in
+                    try await self.store.importRows(into: self.vehicle.id, fillups: [], entries: items, dryRun: true)
+                }
             }
         } catch is CancellationError {
             checkFailed = true
@@ -192,23 +196,36 @@ final class CSVImportModel {
         }
     }
 
-    private func check(fillups: [ImportFillup], entries: [ImportEntry], lines: [Int], offset: Int) async throws {
-        do {
-            let answer = try await store.importRows(into: vehicle.id, fillups: fillups, entries: entries, dryRun: true)
-            for duplicate in answer.duplicates where offset + duplicate.index < lines.count {
-                hints[lines[offset + duplicate.index]] = Hint(
-                    kind: .duplicate, text: String(localized: "Bereits vorhanden, wird übersprungen"))
-            }
-            for warning in answer.warnings where offset + warning.index < lines.count {
-                let line = lines[offset + warning.index]
-                guard hints[line] == nil else { continue }
-                hints[line] = Hint(kind: .warning,
-                                   text: String(localized: "Tachostand prüfen: \(warning.message ?? "")"))
-            }
-        } catch APIError.invalidRows(let rows) {
-            for row in rows where offset + row.index < lines.count {
-                hints[lines[offset + row.index]] = Hint(
-                    kind: .rejected, text: APIError.server(code: row.error, status: 400).errorDescription ?? row.error)
+    /// Checks one package. The API names at most 50 rejected rows per answer, so the package is checked again
+    /// without the rows named so far, until nothing is rejected any more.
+    private func check<Item>(_ items: [Item], lines: [Int], offset: Int,
+                             send: ([Item]) async throws -> ImportResponse) async throws {
+        var remaining = Array(items.indices)
+        for _ in 0..<40 {
+            let sending = remaining.map { items[$0] }
+            do {
+                let answer = try await send(sending)
+                for duplicate in answer.duplicates where remaining.indices.contains(duplicate.index) {
+                    hints[lines[offset + remaining[duplicate.index]]] = Hint(
+                        kind: .duplicate, text: String(localized: "Bereits vorhanden, wird übersprungen"))
+                }
+                for warning in answer.warnings where remaining.indices.contains(warning.index) {
+                    let line = lines[offset + remaining[warning.index]]
+                    guard hints[line] == nil else { continue }
+                    hints[line] = Hint(kind: .warning,
+                                       text: String(localized: "Tachostand prüfen: \(warning.message ?? "")"))
+                }
+                return
+            } catch APIError.invalidRows(let rows) {
+                let bad = Set(rows.filter { remaining.indices.contains($0.index) }.map(\.index))
+                guard !bad.isEmpty else { throw APIError.invalidRows(rows) }
+                for row in rows where remaining.indices.contains(row.index) {
+                    hints[lines[offset + remaining[row.index]]] = Hint(
+                        kind: .rejected,
+                        text: APIError.server(code: row.error, status: 400).errorDescription ?? row.error)
+                }
+                remaining = remaining.indices.filter { !bad.contains($0) }.map { remaining[$0] }
+                if remaining.isEmpty { return }
             }
         }
     }

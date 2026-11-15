@@ -293,7 +293,9 @@ public enum CSVImport {
         (.fuel, ["sorte", "kraftstoffsorte", "kraftstoff", "fuel", "fueltype", "spritsorte"]),
         (.pricePerUnit, ["preisproeinheit", "preisproliter", "literpreis", "preisl", "priceperliter", "priceperunit",
                          "einzelpreis", "preisprokwh", "kwhpreis", "strompreis", "preiskwh"]),
-        (.full, ["vollgetankt", "vollgeladen", "voll", "full", "volltank", "isfull", "vollgetanktbzwgeladen"]),
+        (.full, ["vollgetankt", "vollgeladen", "voll", "full", "volltank", "isfull", "vollgetanktbzwgeladen",
+                  // Header of the API's export for vehicles without a clear drive type; the web app's list lacks it.
+                  "vollgetanktgeladen"]),
         (.gapBefore, ["lueckedavor", "luecke", "skipprevious", "vorherigeignorieren",
                       "vorherigetankfuellungignorieren"]),
         (.chargeType, ["ladeart", "chargetype", "ladetyp", "ladeort"]),

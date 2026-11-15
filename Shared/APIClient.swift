@@ -32,6 +32,13 @@ enum APIError: LocalizedError, Equatable {
             case "token_expired": String(localized: "Der Code ist abgelaufen. Fordere eine neue Mail an.")
             case "vehicle_archived":
                 String(localized: "Dieses Fahrzeug ist archiviert (verkauft oder stillgelegt) und nur lesbar. Aktiviere es wieder, um etwas zu ändern.")
+            case "charge_fields_kwh_only": String(localized: "Ladeangaben gibt es nur bei Ladevorgängen.")
+            case "invalid_chargeType": String(localized: "Die Ladeart ist ungültig.")
+            case "invalid_chargeMinutes": String(localized: "Die Ladedauer ist ungültig.")
+            case "invalid_soc", "invalid_socBeforePct", "invalid_socAfterPct":
+                String(localized: "Der Ladestand ist ungültig.")
+            case "parts_not_allowed", "invalid_parts": String(localized: "Die Bauteile passen nicht zur Kategorie.")
+            case "plan_required": String(localized: "Diese Kategorie ist in deinem Tarif nicht enthalten.")
             case "nothing_to_import": String(localized: "Die Datei enthält keine Zeilen zum Importieren.")
             case "too_many_rows": String(localized: "Zu viele Zeilen auf einmal. Teile die Datei in kleinere Teile.")
             case "invalid_status": String(localized: "Der Status des Fahrzeugs ist ungültig.")
