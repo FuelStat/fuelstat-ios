@@ -24,7 +24,7 @@ struct TripLogView: View {
     @State private var isExporting = false
 
     private var vehicle: RemoteVehicle? { store.vehicle(vehicleID) }
-    private var canRecord: Bool { vehicle?.role.canRecord ?? true }
+    private var canRecord: Bool { vehicle?.canRecord ?? true }
 
     var body: some View {
         List {

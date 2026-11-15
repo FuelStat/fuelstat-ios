@@ -23,7 +23,7 @@ struct EntryDetailView: View {
 
     private var vehicle: RemoteVehicle? { store.vehicle(vehicleID) }
     private var category: RemoteCategory? { store.categories?.category(item.category) }
-    private var canChange: Bool { vehicle?.role.canRecord ?? true }
+    private var canChange: Bool { vehicle?.canRecord ?? true }
 
     var body: some View {
         List {

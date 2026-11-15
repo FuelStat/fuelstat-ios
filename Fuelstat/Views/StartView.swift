@@ -23,7 +23,7 @@ struct StartView: View {
 
     /// An account without vehicles that has loaded fine and did not skip the first steps.
     private var showsOnboarding: Bool {
-        store.hasLoaded && store.loadError == nil && store.vehicles.isEmpty && !onboardingSkipped
+        store.hasLoaded && store.loadError == nil && store.allVehicles.isEmpty && !onboardingSkipped
     }
 
     var body: some View {
@@ -59,7 +59,7 @@ struct StartView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if hasEntries == false, vehicle.role.canRecord {
+                if hasEntries == false, vehicle.canRecord {
                     FirstEntryCard(vehicleName: vehicle.name, onAdd: onAddEntry)
                 }
 

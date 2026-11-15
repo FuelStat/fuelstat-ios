@@ -209,6 +209,28 @@ truth, so figures must match the web app exactly.
 - [ ] Server without plan limits: the footer says all Plus functions are open
 - [ ] Neither a purchase button nor a link to buy a plan anywhere in the app
 
+### 4b. Archive (needs backend 0.13.0)
+
+On a server with FuelStat/fuelstat#79 (check `/health`; before 0.13.0 nothing
+changes and every vehicle stays active).
+
+- [ ] Vehicle page → Daten → "Als verkauft oder stillgelegt archivieren":
+      "Verkauft" with date, odometer and proceeds, or "Stillgelegt" with the
+      period; afterwards the vehicle is under Profil → Fahrzeuge → "Archiv"
+      with its summary, and the web app shows the same status
+- [ ] The vehicle is gone from the switcher, from Start, from the "+" sheet's
+      vehicle picker and from Siri/Shortcuts, quick actions and the widget
+      list; with only archived vehicles Start says "Keine aktiven Fahrzeuge"
+- [ ] Its page shows the banner; no "Tanken erfassen", no "Bearbeiten", no
+      photo change; entries and the chart stay readable
+- [ ] A change made in the web app while the app is open (e.g. archiving):
+      pull to refresh moves the vehicle to the archive; recording on it shows
+      "Dieses Fahrzeug ist archiviert …" (API 409), not "Serverfehler"
+- [ ] "Wieder aktivieren" brings it back everywhere; with plan limits on, an
+      over-limit reactivation or archiving shows the API's plan message
+- [ ] Profil → Tarif lists "Archivierte Fahrzeuge" when the server sends the limit
+- [ ] A shared vehicle that its owner archived shows the banner without a button
+
 ### 5. Vehicle photo
 
 - [ ] Add a photo with "Foto aufnehmen" and with "Foto auswählen"; it shows

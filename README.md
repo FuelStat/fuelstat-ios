@@ -174,6 +174,13 @@ self-hosted servers can be entered on the sign-in screen):
   default, registration, tank and battery, purchase and sale, service and oil
   intervals, insurance, tax and tyres; own vehicles can be reordered under
   Profil → Fahrzeuge (`sortOrder`, FuelStat/fuelstat#181)
+- Archive (FuelStat/fuelstat#79, server 0.13.0 or later): a vehicle can be
+  archived as sold (date, odometer, proceeds) or decommissioned (period) and
+  reactivated, on its page under "Daten". Archived vehicles are listed under
+  Profil → Fahrzeuge → Archiv, stay readable and are not offered for recording,
+  the vehicle switcher, Siri, quick actions and widgets; the API's 409
+  `vehicle_archived` and plan limits (`maxArchivedVehicles`) are shown as
+  messages. Servers before 0.13.0 send no status: every vehicle is active
 - Profil → Tarif: booked plan, end date and what the plan allows from `/whoami`;
   no purchase and no link to one (#32)
 - Several fuel types per vehicle (FuelStat/fuelstat#140, catalog from

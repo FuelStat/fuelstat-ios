@@ -7,7 +7,8 @@ import UIKit
 @MainActor
 @Observable
 final class VehicleStore {
-    private(set) var vehicles: [RemoteVehicle] = []
+    /// Every vehicle of the account, archived ones included.
+    private(set) var allVehicles: [RemoteVehicle] = []
     private(set) var stats: [String: VehicleStats] = [:]
     private(set) var hasLoaded = false
     /// Error of the last load; the list keeps showing the previous vehicles.
@@ -23,7 +24,7 @@ final class VehicleStore {
 
     func load() async {
         do {
-            vehicles = sorted(try await auth.call { try await $0.vehicles(token: $1) })
+            allVehicles = sorted(try await auth.call { try await $0.vehicles(token: $1) })
             loadError = nil
             hasLoaded = true
             await loadStats()
@@ -39,7 +40,7 @@ final class VehicleStore {
 
     /// Key figures for all vehicles, loaded in parallel. Failures keep the previous figures.
     private func loadStats() async {
-        let ids = vehicles.map(\.id)
+        let ids = allVehicles.map(\.id)
         let auth = auth
         let results = await withTaskGroup(of: (String, VehicleStats?).self) { group in
             for id in ids {
@@ -71,13 +72,20 @@ final class VehicleStore {
         try await auth.call { try await $0.costs(vehicleID: id, year: year, token: $1) }
     }
 
+    /// The vehicles that are offered for recording, switching and reminders: not sold or decommissioned ones.
+    var vehicles: [RemoteVehicle] { allVehicles.filter { !$0.isArchived } }
+
+    /// Sold and decommissioned vehicles: readable, not changeable.
+    var archivedVehicles: [RemoteVehicle] { allVehicles.filter(\.isArchived) }
+
     func vehicle(_ id: String) -> RemoteVehicle? {
-        vehicles.first { $0.id == id }
+        allVehicles.first { $0.id == id }
     }
 
     /// The vehicle chosen in the switcher, falling back to the one of the last fill-up.
     func resolvedSelection(_ id: String?) -> String? {
-        if let id, vehicle(id) != nil { return id }
+        // An archived vehicle (e.g. archived in the web app after it was chosen here) is not offered any more.
+        if let id, vehicles.contains(where: { $0.id == id }) { return id }
         return lastUsedVehicleID
     }
 
@@ -93,7 +101,7 @@ final class VehicleStore {
     @discardableResult
     func create(_ input: VehicleInput) async throws -> RemoteVehicle {
         let vehicle = try await auth.call { try await $0.createVehicle(input, token: $1) }
-        vehicles = sorted(vehicles + [vehicle])
+        allVehicles = sorted(allVehicles + [vehicle])
         return vehicle
     }
 
@@ -104,9 +112,19 @@ final class VehicleStore {
         return vehicle
     }
 
+    /// Archives a vehicle as sold or decommissioned, or reactivates it. The API checks the plan limits
+    /// (`maxVehicles` for reactivating, `maxArchivedVehicles` for archiving) and answers with its message.
+    @discardableResult
+    func setStatus(_ id: String, _ change: VehicleStatusChange) async throws -> RemoteVehicle {
+        let vehicle = try await auth.call { try await $0.changeVehicleStatus(id: id, change, token: $1) }
+        replace(vehicle)
+        WidgetRefresh.reload()
+        return vehicle
+    }
+
     func delete(_ id: String) async throws {
         try await auth.call { try await $0.deleteVehicle(id: id, token: $1) }
-        vehicles.removeAll { $0.id == id }
+        allVehicles.removeAll { $0.id == id }
         stats[id] = nil
     }
 
@@ -371,7 +389,7 @@ final class VehicleStore {
     /// Leaves a vehicle that was shared with the user; it disappears from the list.
     func leave(_ id: String) async throws {
         try await auth.call { try await $0.removeMember(vehicleID: id, userID: "me", token: $1) }
-        vehicles.removeAll { $0.id == id }
+        allVehicles.removeAll { $0.id == id }
         stats[id] = nil
     }
 
@@ -414,7 +432,7 @@ final class VehicleStore {
     /// The vehicle used for the last fill-up, as default for the next one.
     var lastUsedVehicleID: String? {
         let id = Self.storedLastVehicleID
-        return vehicles.contains { $0.id == id } ? id : vehicles.first?.id
+        return vehicles.contains { $0.id == id } ? id : vehicles.first(where: \.canRecord)?.id ?? vehicles.first?.id
     }
 
     private nonisolated static let lastVehicleKey = "fillup.lastVehicleID"
@@ -426,12 +444,12 @@ final class VehicleStore {
     }
 
     private func replace(_ vehicle: RemoteVehicle) {
-        if let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
-            vehicles[index] = vehicle
+        if let index = allVehicles.firstIndex(where: { $0.id == vehicle.id }) {
+            allVehicles[index] = vehicle
         } else {
-            vehicles.append(vehicle)
+            allVehicles.append(vehicle)
         }
-        vehicles = sorted(vehicles)
+        allVehicles = sorted(allVehicles)
     }
 
     /// Own vehicles before shared ones, then by the position the owner set, then by name.
@@ -446,22 +464,23 @@ final class VehicleStore {
     /// Moves own vehicles in the list. Every vehicle whose position changes gets its new `sortOrder`; shared
     /// vehicles stay where they are, as their position belongs to their owner.
     func move(fromOffsets source: IndexSet, toOffset destination: Int) async throws {
+        // Only the active vehicles are listed for sorting; archived ones keep their place.
         var owned = vehicles.filter { !$0.isShared }
-        let shared = vehicles.filter(\.isShared)
+        let rest = allVehicles.filter { $0.isShared || $0.isArchived }
         owned.move(fromOffsets: source, toOffset: min(destination, owned.count))
         let changes = owned.enumerated().filter { $0.element.sortOrder != $0.offset }
         guard !changes.isEmpty else { return }
         // Show the new order at once; the server's answers replace the vehicles once all are saved.
-        vehicles = owned + shared
+        allVehicles = owned + rest
         do {
-            var result = vehicles
+            var result = allVehicles
             for change in changes {
                 let saved = try await auth.call {
                     try await $0.setVehicleOrder(id: change.element.id, sortOrder: change.offset, token: $1)
                 }
                 if let index = result.firstIndex(where: { $0.id == saved.id }) { result[index] = saved }
             }
-            vehicles = sorted(result)
+            allVehicles = sorted(result)
         } catch {
             await load()
             throw error
