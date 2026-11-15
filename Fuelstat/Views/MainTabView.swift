@@ -52,6 +52,7 @@ enum Route: Hashable {
     case sharing(String)
     case invitations
     case categories
+    case plan
     case allReminders
 }
 
@@ -226,6 +227,7 @@ extension View {
             case .sharing(let id): VehicleSharingView(store: store, vehicleID: id)
             case .invitations: InvitationsView(store: store)
             case .categories: CategoriesView(store: store)
+            case .plan: PlanView()
             case .allReminders: AllRemindersView(store: store)
             }
         }

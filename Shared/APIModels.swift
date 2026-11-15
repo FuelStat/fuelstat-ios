@@ -42,6 +42,8 @@ struct APIUser: Decodable, Equatable {
     var terms: Terms?
     /// Open invitations to vehicles of other accounts (`/whoami` only).
     var pendingInvitations: Int?
+    /// Plan and rights (`/whoami` only); nil on servers without plans.
+    var plan: PlanInfo?
 
     enum CodingKeys: String, CodingKey {
         case id, email, username, terms
@@ -75,6 +77,7 @@ struct APIUser: Decodable, Equatable {
         pendingEmail = c.text(.pendingEmail)
         terms = try? c.decodeIfPresent(Terms.self, forKey: .terms)
         pendingInvitations = c.number(.pendingInvitations).map { Int($0) }
+        plan = try? PlanInfo(from: decoder)
     }
 
     /// Name shown in the app: the user name, otherwise the e-mail address.
@@ -359,6 +362,8 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
     let fuels: [String]
     /// The fuel type preselected for new entries.
     let defaultFuel: String?
+    /// Position in the vehicle list (`sort_order`); the API leaves it at 0 until the owner moves a vehicle.
+    let sortOrder: Int
     /// The signed-in user's role (`owner`, `editor`, `viewer`); servers without sharing send none.
     let role: VehicleRole
     /// Name of the owner, only for vehicles shared with the user.
@@ -370,6 +375,7 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, name, brand, model, year, vin, role, fuels
         case defaultFuel = "default_fuel"
+        case sortOrder = "sort_order"
         case ownerName = "owner_name"
         case fuelType = "fuel_type"
         case imageURL = "image_url"
@@ -421,6 +427,7 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
         taxDueMonth = c.number(.taxDueMonth).map { Int($0) }
         fuels = (try? c.decodeIfPresent([String].self, forKey: .fuels)) ?? []
         defaultFuel = c.text(.defaultFuel)
+        sortOrder = c.number(.sortOrder).map { Int($0) } ?? 0
         role = c.text(.role).flatMap(VehicleRole.init(rawValue:)) ?? .owner
         ownerName = c.text(.ownerName)
     }
@@ -515,6 +522,11 @@ struct VehicleInput: Encodable {
         if let fuels { try c.encode(fuels, forKey: .fuels) }
         if let defaultFuel { try c.encode(defaultFuel, forKey: .defaultFuel) }
     }
+}
+
+/// Body for `PATCH /api/v1/vehicles/{id}` that moves a vehicle in the list (FuelStat/fuelstat#181).
+struct VehicleOrderPatch: Encodable {
+    var sortOrder: Int
 }
 
 /// Body for `PATCH /api/v1/vehicles/{id}` that sets or removes the photo.

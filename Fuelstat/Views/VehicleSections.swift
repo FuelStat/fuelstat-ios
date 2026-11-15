@@ -586,7 +586,36 @@ struct MasterDataCards: View {
                 ("Reifen Sommer", vehicle.tireSizeSummer),
                 ("Reifen Winter", vehicle.tireSizeWinter),
             ])
+            group("Kauf und Verkauf", [
+                ("Kaufdatum", vehicle.purchaseDate.flatMap(APIDate.parseDay).map(APIDate.formatDay)),
+                ("Kaufpreis", vehicle.purchasePrice.map(Fmt.currency)),
+                ("Verkaufsdatum", vehicle.saleDate.flatMap(APIDate.parseDay).map(APIDate.formatDay)),
+                ("Verkaufspreis", vehicle.salePrice.map(Fmt.currency)),
+            ])
+            group("Wartung", [
+                ("Inspektion alle", interval(months: vehicle.serviceIntervalMonths, km: vehicle.serviceIntervalKm)),
+                ("Ölwechsel alle", interval(months: vehicle.oilIntervalMonths, km: vehicle.oilIntervalKm)),
+            ])
+            group("Versicherung und Steuer", [
+                ("Versicherung", vehicle.insuranceCompany),
+                ("Beitrag pro Jahr", vehicle.insurancePremium.map(Fmt.currency)),
+                ("Beitrag fällig im", month(vehicle.insuranceDueMonth)),
+                ("Kfz-Steuer pro Jahr", vehicle.taxAmount.map(Fmt.currency)),
+                ("Steuer fällig im", month(vehicle.taxDueMonth)),
+            ])
         }
+    }
+
+    /// "12 Monate / 15.000 km", with whichever of the two is set.
+    private func interval(months: Int?, km: Int?) -> String? {
+        let parts = [months.map { String(localized: "\($0) Monate") }, km.map { Fmt.kilometres(Double($0)) }]
+        let text = parts.compactMap { $0 }.joined(separator: " / ")
+        return text.isEmpty ? nil : text
+    }
+
+    private func month(_ number: Int?) -> String? {
+        guard let number, (1...12).contains(number) else { return nil }
+        return Calendar.current.monthSymbols[number - 1]
     }
 
     @ViewBuilder

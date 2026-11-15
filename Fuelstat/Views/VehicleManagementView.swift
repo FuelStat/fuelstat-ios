@@ -4,6 +4,7 @@ import SwiftUI
 struct VehicleManagementView: View {
     @Bindable var store: VehicleStore
     @State private var showingAddVehicle = false
+    @State private var moveError: String?
 
     var body: some View {
         List {
@@ -18,11 +19,39 @@ struct VehicleManagementView: View {
                     VehicleRow(vehicle: vehicle, store: store)
                 }
                 .listRowBackground(Theme.card)
+                .moveDisabled(vehicle.isShared)
+            }
+            .onMove { source, destination in
+                Task {
+                    do {
+                        try await store.move(fromOffsets: source, toOffset: destination)
+                    } catch {
+                        moveError = error.localizedDescription
+                    }
+                }
+            }
+            if store.vehicles.filter({ !$0.isShared }).count > 1 {
+                Text("Tippe auf „Sortieren“ und ziehe die Fahrzeuge in die gewünschte Reihenfolge. Geteilte Fahrzeuge stehen am Ende.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
             }
         }
         .themedBackground()
         .navigationTitle("Fahrzeuge")
+        .alert("Reihenfolge nicht gesichert", isPresented: Binding(
+            get: { moveError != nil }, set: { if !$0 { moveError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(verbatim: moveError ?? "")
+        }
         .toolbar {
+            if store.vehicles.filter({ !$0.isShared }).count > 1 {
+                ToolbarItem(placement: .topBarLeading) {
+                    EditButton()
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button("Fahrzeug hinzufügen", systemImage: "plus") { showingAddVehicle = true }
             }

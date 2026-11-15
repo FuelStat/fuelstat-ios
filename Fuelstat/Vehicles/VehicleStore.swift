@@ -429,8 +429,38 @@ final class VehicleStore {
         vehicles = sorted(vehicles)
     }
 
+    /// Own vehicles before shared ones, then by the position the owner set, then by name.
     private func sorted(_ list: [RemoteVehicle]) -> [RemoteVehicle] {
-        list.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        list.sorted {
+            if $0.isShared != $1.isShared { return !$0.isShared }
+            if $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+            return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+
+    /// Moves own vehicles in the list. Every vehicle whose position changes gets its new `sortOrder`; shared
+    /// vehicles stay where they are, as their position belongs to their owner.
+    func move(fromOffsets source: IndexSet, toOffset destination: Int) async throws {
+        var owned = vehicles.filter { !$0.isShared }
+        let shared = vehicles.filter(\.isShared)
+        owned.move(fromOffsets: source, toOffset: min(destination, owned.count))
+        let changes = owned.enumerated().filter { $0.element.sortOrder != $0.offset }
+        guard !changes.isEmpty else { return }
+        // Show the new order at once; the server's answers replace the vehicles once all are saved.
+        vehicles = owned + shared
+        do {
+            var result = vehicles
+            for change in changes {
+                let saved = try await auth.call {
+                    try await $0.setVehicleOrder(id: change.element.id, sortOrder: change.offset, token: $1)
+                }
+                if let index = result.firstIndex(where: { $0.id == saved.id }) { result[index] = saved }
+            }
+            vehicles = sorted(result)
+        } catch {
+            await load()
+            throw error
+        }
     }
 
     /// The server shrinks photos to 1600 px anyway; doing it here keeps uploads small on mobile data.

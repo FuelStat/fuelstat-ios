@@ -305,6 +305,10 @@ struct APIClient {
         return try await send("vehicles/\(id)", method: "PATCH", body: input, token: token)
     }
 
+    func setVehicleOrder(id: String, sortOrder: Int, token: String) async throws -> RemoteVehicle {
+        try await send("vehicles/\(id)", method: "PATCH", body: VehicleOrderPatch(sortOrder: sortOrder), token: token)
+    }
+
     func setVehicleImage(id: String, imageURL: String?, token: String) async throws -> RemoteVehicle {
         try await send("vehicles/\(id)", method: "PATCH", body: VehicleImagePatch(imageUrl: imageURL), token: token)
     }
