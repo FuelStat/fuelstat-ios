@@ -101,6 +101,20 @@ The app has its own version, independent of the web app/API version.
 - **App releases do not bump the backend.** If a release needs a new API
   feature, the backend release (FuelStat/fuelstat, `docs/betrieb.md`) must be
   tagged and deployed first; say so in the release notes.
+- **Minimum app version (the backend decides, the app must not forget it).**
+  `GET /api/v1/health` reports `apps.ios.minimum_version` and
+  `recommended_version` (FuelStat/fuelstat, `backend/src/lib/appVersions.js`);
+  older apps get `426 app_update_required`. If this app version exists because
+  the backend changed in a way older app versions cannot handle (new status
+  values or error codes such as `409 vehicle_archived`, removed or changed
+  fields, new read-only behaviour), the backend release that ships that change
+  must raise `minimum` to this app version. Settle it **before tagging**: say in
+  the release PR text whether the backend minimum must change ("Backend minimum
+  version: needed / not needed, because …"), and if it must, open an issue in
+  FuelStat/fuelstat ("Mindest-App-Version iOS auf X.Y.Z anheben", naming the
+  backend release it belongs to) unless one exists. The app tag comes first and
+  the version must be installable on the maintainer's devices before the backend
+  with the new minimum is deployed, otherwise every device is locked out.
 
 Steps:
 
@@ -110,8 +124,8 @@ Steps:
    `CURRENT_PROJECT_VERSION`, update the README, add the version to the
    in-app release notes (`ReleaseNote.all` in
    `Fuelstat/Views/ReleaseNotesView.swift`, German, written for users), check
-   `docs/app-privacy.md` against what the app sends, run the tests and the CI
-   build.
+   `docs/app-privacy.md` against what the app sends, decide the backend minimum
+   version (see above), run the tests and the CI build.
 3. **Test** the release build by hand: work through
    [`docs/testing.md`](docs/testing.md) against the hosted service and a
    self-hosted server, and record the result (API version from `/health`,
@@ -134,7 +148,9 @@ Steps:
 **Remind the maintainer** at the end of a task when merged changes are not yet
 in a tagged release, when a release PR is merged but its tag is missing, or
 when the app depends on a backend change that is merged but not yet released
-and deployed. Only create or push tags when the maintainer explicitly asks.
+and deployed, and when a backend release raises (or should raise) the minimum
+app version to a version that is not tagged or not installed yet. Only create
+or push tags when the maintainer explicitly asks.
 
 ## Checklist for every PR
 
@@ -152,6 +168,10 @@ anything still missing:
 - **Backend dependency:** if the PR relies on a backend change, that change is
   merged, released (tag) and deployed – check `GET /api/v1/health` – before the
   app release that needs it.
+- **Minimum version:** if the PR adapts the app to a backend change that older
+  app versions cannot handle (see "Minimum app version"), the PR text and the
+  issue name it, and the backend gets an issue to raise `minimum`/`recommended`
+  when this version ships.
 - **Strings:** new user-facing text is in `Localizable.xcstrings` (German).
 - **Design:** new screens and components follow the shared design document
   (FuelStat/fuelstat `docs/design.md`) and `docs/design.md` here.
