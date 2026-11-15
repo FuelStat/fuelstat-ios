@@ -69,6 +69,12 @@ self-hosted servers can be entered on the sign-in screen):
   "Kilometerstand nachtragen" for fill-ups without a real reading works at any
   time; odometer warnings from the API are shown after saving
 - The "+" sheet has type chips: Tanken, Laden, Ausgabe, Fahrt, Kilometer
+- E-Mail notifications (#31, Profil → Termine → E-Mail-Benachrichtigungen):
+  per occasion (due dates, odometer missing, monthly report, no entry for 30
+  days) the e-mail channel and the lead time, through
+  `PUT /notifications/preferences` (partial: push channels stay untouched).
+  The mail server and the sending are the server's; entering an own SMTP
+  server stays in the web app
 - Expenses (`/entries`) with categories from `GET /categories` (name, icon and
   colour from the API, locked ones marked "mit Plus"); own categories under
   Profil → Kategorien (add, change, delete with moving the expenses)

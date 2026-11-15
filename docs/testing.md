@@ -311,6 +311,14 @@ truth, so figures must match the web app exactly.
 
 ### 8. Statistik, Termine and reminders
 
+- [ ] Profil → Termine → "E-Mail-Benachrichtigungen": the four occasions and
+      the lead time equal the web app's page "Benachrichtigungen" (E-Mail
+      column); switching one on or off and coming back (also in the web app)
+      shows the same state; switching one does not change the others or the
+      push switches in the web app; lead time saves
+- [ ] Server without a mail server: switches are disabled with the hint; with
+      an unconfirmed address the API message is shown ("email_not_verified")
+
 - [ ] Key figures (Ø Verbrauch, Zuletzt with trend arrow, Ø Preis) equal the
       web app's values for the same vehicle
 - [ ] Statistik → "Verbrauch": per energy Ø, lowest/highest, amount bought,

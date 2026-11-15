@@ -219,6 +219,17 @@ struct APIClient {
                        token: token)
     }
 
+    /// Which occasions the server mails about, and the lead time for due dates.
+    func notificationPreferences(token: String) async throws -> NotificationPreferences {
+        try await send("notifications/preferences", token: token)
+    }
+
+    /// Changes one channel or the lead time; the answer is the full state.
+    func updateNotificationPreferences(_ update: NotificationPreferencesUpdate, token: String)
+        async throws -> NotificationPreferences {
+        try await send("notifications/preferences", method: "PUT", body: update, token: token)
+    }
+
     func resendVerification(token: String) async throws -> VerificationSent {
         try await send("auth/resend-verification", method: "POST", token: token)
     }
