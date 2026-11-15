@@ -307,6 +307,16 @@ struct APIClient {
         try await send("vehicles/\(vehicleID)/stats", token: token)
     }
 
+    /// Consumption, amounts, CO₂ and prices per energy, all calculated by the API.
+    func consumption(vehicleID: String, token: String) async throws -> VehicleConsumption {
+        try await send("vehicles/\(vehicleID)/consumption", token: token)
+    }
+
+    /// Costs of a vehicle: totals, cost per km, months and categories; `year` nil for the whole period.
+    func costs(vehicleID: String, year: Int?, token: String) async throws -> VehicleCosts {
+        try await send("vehicles/\(vehicleID)/costs", query: yearQuery(year), token: token)
+    }
+
     /// The latest fill-ups, newest first (at most `Page.maxPerPage`).
     func fillups(vehicleID: String, limit: Int, token: String) async throws -> [RemoteFillup] {
         try await fillups(vehicleID: vehicleID, page: 1, perPage: limit, token: token).data

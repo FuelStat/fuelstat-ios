@@ -34,20 +34,20 @@ public struct ChargingStation: Decodable, Identifiable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         name = try c.decode(String.self, forKey: .name)
-        operatorName = Self.text(c, .operatorName)
-        street = Self.text(c, .street)
-        place = Self.text(c, .place)
-        postCode = Self.text(c, .postCode)
-        latitude = (try? c.decodeIfPresent(Double.self, forKey: .latitude)) ?? nil
-        longitude = (try? c.decodeIfPresent(Double.self, forKey: .longitude)) ?? nil
-        distanceKm = (try? c.decodeIfPresent(Double.self, forKey: .distanceKm)) ?? nil
-        points = (try? c.decodeIfPresent(Int.self, forKey: .points)) ?? nil
-        maxKw = (try? c.decodeIfPresent(Double.self, forKey: .maxKw)) ?? nil
-        connectors = ((try? c.decodeIfPresent([String].self, forKey: .connectors)) ?? nil) ?? []
-        usageCost = Self.text(c, .usageCost)
-        isOperational = ((try? c.decodeIfPresent(Bool.self, forKey: .isOperational)) ?? nil) ?? true
-        // The id is nullable in the API; without one the name and place identify the station well enough.
-        if let id = Self.text(c, .id) {
+        operatorName = c.lenientText(.operatorName)
+        street = c.lenientText(.street)
+        place = c.lenientText(.place)
+        postCode = c.lenientText(.postCode)
+        latitude = c.lenientNumber(.latitude)
+        longitude = c.lenientNumber(.longitude)
+        distanceKm = c.lenientNumber(.distanceKm)
+        points = c.lenientInt(.points)
+        maxKw = c.lenientNumber(.maxKw)
+        connectors = c.lenientList(.connectors, of: String.self)
+        usageCost = c.lenientText(.usageCost)
+        isOperational = c.lenientBool(.isOperational) ?? true
+        // The id is nullable in the API; without one the name and position identify the station well enough.
+        if let id = c.lenientText(.id) {
             self.id = id
         } else {
             let position = [latitude, longitude].compactMap { $0 }.map { String($0) }.joined(separator: ",")
@@ -73,20 +73,6 @@ public struct ChargingStation: Decodable, Identifiable, Equatable, Sendable {
         self.connectors = connectors
         self.usageCost = usageCost
         self.isOperational = isOperational
-    }
-
-    /// Reads a text field; missing, null, empty or wrongly typed values count as absent.
-    private static func text(_ c: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys) -> String? {
-        let value: String?
-        if let string = (try? c.decodeIfPresent(String.self, forKey: key)) ?? nil {
-            value = string
-        } else if let number = (try? c.decodeIfPresent(Int.self, forKey: key)) ?? nil {
-            value = String(number) // OCM ids are numbers in some responses
-        } else {
-            value = nil
-        }
-        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed?.isEmpty == false ? trimmed : nil
     }
 
     /// Operator when known, otherwise the station's own name.
@@ -134,18 +120,9 @@ public struct ChargingStationsResponse: Decodable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         // One station the app cannot read does not hide the others.
-        stations = try c.decode([LossyStation].self, forKey: .stations).compactMap(\.value)
-        source = (try? c.decodeIfPresent(String.self, forKey: .source)) ?? nil
-        license = (try? c.decodeIfPresent(String.self, forKey: .license)) ?? nil
-        sourceUrl = (try? c.decodeIfPresent(String.self, forKey: .sourceUrl)) ?? nil
-    }
-}
-
-/// Decodes a station or yields nil instead of failing the whole list.
-private struct LossyStation: Decodable {
-    let value: ChargingStation?
-
-    init(from decoder: Decoder) throws {
-        value = try? ChargingStation(from: decoder)
+        stations = c.lenientList(.stations, of: ChargingStation.self)
+        source = c.lenientText(.source)
+        license = c.lenientText(.license)
+        sourceUrl = c.lenientText(.sourceUrl)
     }
 }

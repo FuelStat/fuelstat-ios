@@ -86,7 +86,14 @@ self-hosted servers can be entered on the sign-in screen):
   replanned whenever the due dates are loaded and at app start, removed on
   sign-out, a tap opens the vehicle
 - Statistik: key figures and consumption per fill-up (segments from `/stats`)
-  as a chart
+  as a chart; "Verbrauch" adds, from `/consumption`, per energy the average,
+  lowest and highest value, amounts, costs, CO₂, consumption per month,
+  yearly overview, energy costs per 100 km (best and worst month; the main
+  figure of plug-in hybrids) and prices per fuel grade; "Kosten" shows, from
+  `/costs`, totals, cost per km and month, a chart per month stacked by
+  category, the cost structure, a year picker and the comparison of years.
+  Maintenance cost per 10,000 km and the biggest single expenses are not
+  shown: the web app calculates them itself, the API has no field for them yet
 - Profil: account, vehicle management, sign out, app and server version,
   feedback to the server operator (`POST /feedback`, with app and iOS version),
   the app's release notes and the server's news page

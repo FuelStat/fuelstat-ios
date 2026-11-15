@@ -60,10 +60,11 @@ struct ChargingStationTests {
     }
 
     @Test func numericIdAndFractionalPower() throws {
-        let json = Data(#"{"stations":[{"id":42,"name":"AC","maxKw":22.5,"connectors":["Typ 2"]}]}"#.utf8)
+        let json = Data(#"{"stations":[{"id":42,"name":"AC","maxKw":"22.5","distanceKm":"1.5","connectors":["Typ 2"]}]}"#.utf8)
         let station = try #require(JSONDecoder().decode(ChargingStationsResponse.self, from: json).stations.first)
         #expect(station.id == "42")
         #expect(station.maxPowerText == "22,5")
+        #expect(station.distanceKm == 1.5, "numbers may arrive as strings")
         #expect(station.isOperational, "operational unless the API says otherwise")
     }
 
