@@ -33,6 +33,9 @@ struct FillupEntryView: View {
     @State private var nearbyMessage: String?
     @State private var isSearchingNearby = false
     @State private var recentStations: [String] = []
+    /// Charging sessions: stations from Open Charge Map instead of Tankerkönig.
+    @State private var nearbyChargers: [ChargingStation] = []
+    @State private var selectedChargerID: String?
 
     @State private var showingStations = false
     @State private var isSaving = false
@@ -119,6 +122,15 @@ struct FillupEntryView: View {
         vehicle != nil && (values.amount ?? 0) > 0 && values.total != nil && validationMessage == nil && !isSaving
     }
 
+    /// Nearby charging stations, the ones used recently first.
+    private var sortedChargers: [ChargingStation] {
+        let recent = Set(recentStations)
+        return nearbyChargers.enumerated().sorted { lhs, rhs in
+            let l = recent.contains(lhs.element.label), r = recent.contains(rhs.element.label)
+            return l != r ? l : lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
     /// Nearby stations, the ones used recently first.
     private var sortedNearby: [RemoteStation] {
         let recent = Set(recentStations)
@@ -182,7 +194,9 @@ struct FillupEntryView: View {
                 }
             }
             .sheet(isPresented: $showingStations) {
-                if let type = stationSearchType {
+                if isCharging {
+                    ChargingStationPickerView(store: store) { picked in pick(picked) }
+                } else if let type = stationSearchType {
                     StationPickerView(store: store, type: type) { picked, price in
                         pick(picked, price: price)
                     }
@@ -297,9 +311,13 @@ struct FillupEntryView: View {
                 SectionHeader(title: "Tankstellen in der Nähe",
                               action: nearby.isEmpty ? nil : { showingStations = true })
                 nearbyCards
+            } else if isCharging {
+                SectionHeader(title: "Ladestationen in der Nähe",
+                              action: nearbyChargers.isEmpty ? nil : { showingStations = true })
+                chargerCards
             }
 
-            if !recentStations.isEmpty && (stationSearchType == nil || nearby.isEmpty) {
+            if !recentStations.isEmpty && (isCharging ? nearbyChargers.isEmpty : (stationSearchType == nil || nearby.isEmpty)) {
                 Text("Zuletzt genutzt")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -327,6 +345,9 @@ struct FillupEntryView: View {
                     if let id = selectedStationID, nearby.first(where: { $0.id == id })?.label != station {
                         selectedStationID = nil
                     }
+                    if let id = selectedChargerID, nearbyChargers.first(where: { $0.id == id })?.label != station {
+                        selectedChargerID = nil
+                    }
                 }
 
             if stationSearchType != nil, !nearby.isEmpty {
@@ -334,6 +355,54 @@ struct FillupEntryView: View {
                     .font(.footnote)
                     .foregroundStyle(Theme.brand)
             }
+            if isCharging, !nearbyChargers.isEmpty {
+                ChargingSourceLink()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var chargerCards: some View {
+        if isSearchingNearby && nearbyChargers.isEmpty {
+            HStack(spacing: Theme.Spacing.xs) {
+                ProgressView()
+                Text("Suche Ladestationen …").foregroundStyle(.secondary)
+            }
+            .font(.subheadline)
+            .frame(maxWidth: .infinity, minHeight: 88)
+            .background(Theme.card, in: .tile)
+        } else if nearbyChargers.isEmpty {
+            Button {
+                Task { await searchNearby(asking: true) }
+            } label: {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    Label("Ladestationen suchen", systemImage: "location.fill")
+                        .font(.headline)
+                        .foregroundStyle(Theme.brand)
+                    if let nearbyMessage {
+                        Text(nearbyMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+                .padding(Theme.Spacing.s)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.card, in: .tile)
+            }
+            .buttonStyle(.plain)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.xs) {
+                    ForEach(sortedChargers.prefix(10)) { candidate in
+                        ChargerCard(station: candidate, isSelected: candidate.id == selectedChargerID,
+                                    isRecent: recentStations.contains(candidate.label)) {
+                            pick(candidate)
+                        }
+                    }
+                }
+            }
+            .scrollClipDisabled()
         }
     }
 
@@ -529,6 +598,12 @@ struct FillupEntryView: View {
         Haptics.selection()
     }
 
+    private func pick(_ picked: ChargingStation) {
+        selectedChargerID = picked.id
+        station = picked.label
+        Haptics.selection()
+    }
+
     /// New vehicle or fuelling/charging: pick a fitting unit, prefill the last price, load stations.
     private func vehicleChanged() async {
         guard let vehicle else { return }
@@ -572,7 +647,9 @@ struct FillupEntryView: View {
             values = FillupAmounts()
         }
         nearby = []
+        nearbyChargers = []
         selectedStationID = nil
+        selectedChargerID = nil
         async let stationsLoaded: Void = searchNearby(asking: false)
         async let recentLoaded: Void = loadRecentStations(vehicle.id)
         let before = values
@@ -587,6 +664,10 @@ struct FillupEntryView: View {
     /// Without `asking`, only searches when location access was already granted, so opening the sheet never
     /// starts with a permission prompt.
     private func searchNearby(asking: Bool) async {
+        if isCharging {
+            await searchNearbyChargers(asking: asking)
+            return
+        }
         guard let type = stationSearchType, asking || location.isAuthorized else { return }
         isSearchingNearby = true
         nearbyMessage = nil
@@ -599,6 +680,25 @@ struct FillupEntryView: View {
             return
         } catch APIError.server(code: "http_404", _) {
             nearbyMessage = String(localized: "Die Tankstellensuche ist auf diesem Server nicht eingerichtet.")
+        } catch {
+            nearbyMessage = error.localizedDescription
+        }
+    }
+
+    private func searchNearbyChargers(asking: Bool) async {
+        guard asking || location.isAuthorized else { return }
+        isSearchingNearby = true
+        nearbyMessage = nil
+        defer { isSearchingNearby = false }
+        do {
+            let here = try await location.currentLocation()
+            nearbyChargers = try await store.chargingStations(near: here.coordinate.latitude, here.coordinate.longitude)
+                .stations
+            if nearbyChargers.isEmpty { nearbyMessage = String(localized: "Keine Ladestationen im Umkreis von 10 km.") }
+        } catch is CancellationError {
+            return
+        } catch APIError.server(code: "http_404", _) {
+            nearbyMessage = String(localized: "Die Ladestationssuche ist auf diesem Server nicht eingerichtet.")
         } catch {
             nearbyMessage = error.localizedDescription
         }

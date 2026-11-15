@@ -54,6 +54,10 @@ enum APIError: LocalizedError, Equatable {
             case "stations_not_configured":
                 String(localized: "Die Tankstellensuche ist auf diesem Server nicht eingerichtet.")
             case "stations_unavailable": String(localized: "Tankerkönig ist gerade nicht erreichbar.")
+            case "charging_stations_not_configured":
+                String(localized: "Die Ladestationssuche ist auf diesem Server nicht eingerichtet.")
+            case "charging_stations_unavailable":
+                String(localized: "Open Charge Map ist gerade nicht erreichbar.")
             case "email_not_verified":
                 String(localized: "Bitte bestätige zuerst deine E-Mail-Adresse. Den Link dazu haben wir dir per Mail geschickt.")
             case "invalid_message": String(localized: "Die Nachricht muss zwischen 3 und 5000 Zeichen lang sein.")
@@ -486,6 +490,16 @@ struct APIClient {
             URLQueryItem(name: "type", value: type),
         ], token: token)
         return response.stations
+    }
+
+    /// Charging stations near a location (Open Charge Map via the Fuelstat API).
+    func chargingStations(latitude: Double, longitude: Double, radiusKm: Int, token: String) async throws
+        -> ChargingStationsResponse {
+        try await send("charging-stations", query: [
+            URLQueryItem(name: "lat", value: String(format: "%.5f", latitude)),
+            URLQueryItem(name: "lng", value: String(format: "%.5f", longitude)),
+            URLQueryItem(name: "radius", value: String(radiusKm)),
+        ], token: token)
     }
 
     /// Photos of a vehicle (all pages).
