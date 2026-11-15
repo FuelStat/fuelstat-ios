@@ -215,7 +215,7 @@ struct RemindersListView: View {
     @State private var errorMessage: String?
     @State private var completing: RemoteReminder?
 
-    private var canRecord: Bool { store.vehicle(vehicleID)?.role.canRecord ?? true }
+    private var canRecord: Bool { store.vehicle(vehicleID)?.canRecord ?? true }
 
     var body: some View {
         List {

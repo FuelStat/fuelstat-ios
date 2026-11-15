@@ -8,23 +8,41 @@ struct StartView: View {
     var onShowEntries: () -> Void
     var onShowProfile: () -> Void
     var onManageVehicles: () -> Void
+    var onAddEntry: () -> Void
 
+    @Environment(AuthSession.self) private var auth
     @State private var path: [Route] = []
+    /// Whether the selected vehicle has any entry; nil until known.
+    @State private var hasEntries: Bool?
+    @State private var onboardingSkipped = false
     @State private var latest: [TimelineItem] = []
     @State private var reminders: [RemoteReminder] = []
     @State private var showingStations = false
 
     private var vehicle: RemoteVehicle? { selectedID.flatMap(store.vehicle) }
 
+    /// An account without vehicles that has loaded fine and did not skip the first steps.
+    private var showsOnboarding: Bool {
+        store.hasLoaded && store.loadError == nil && store.allVehicles.isEmpty && !onboardingSkipped
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             Group {
                 if let vehicle {
                     content(vehicle)
+                } else if showsOnboarding {
+                    OnboardingView(store: store, pendingInvitations: auth.user?.pendingInvitations ?? 0,
+                                   onShowInvitations: { path.append(.invitations) },
+                                   onSkip: {
+                                       OnboardingState.skip(userID: auth.user?.id)
+                                       onboardingSkipped = true
+                                   })
                 } else {
                     VehicleListPlaceholder(store: store)
                 }
             }
+            .onAppear { onboardingSkipped = OnboardingState.isSkipped(userID: auth.user?.id) }
             .toolbar(.hidden, for: .navigationBar)
             .vehicleRoutes(store: store)
         }
@@ -39,6 +57,10 @@ struct StartView: View {
                     Label(error, systemImage: "wifi.exclamationmark")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                if hasEntries == false, vehicle.canRecord {
+                    FirstEntryCard(vehicleName: vehicle.name, onAdd: onAddEntry)
                 }
 
                 NavigationLink(value: Route.vehicle(vehicle.id)) {
@@ -97,7 +119,9 @@ struct StartView: View {
     private func load(_ id: String) async {
         async let entries = try? store.latestFillups(of: id, limit: 5)
         async let due = try? store.reminders(of: id)
+        async let anyEntry = try? store.timeline(of: id, page: 1, perPage: 1, kinds: [], search: nil)
         latest = await entries ?? latest
         reminders = await due ?? reminders
+        if let page = await anyEntry { hasEntries = !page.items.isEmpty }
     }
 }

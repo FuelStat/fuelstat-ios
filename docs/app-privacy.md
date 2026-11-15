@@ -24,6 +24,7 @@ All types below are **linked to the user** (they belong to the account),
 | User Content | Customer Support | Feedback messages | `POST /feedback` |
 | Identifiers | User ID | Account ID used in API paths | All signed-in requests |
 | Location | Precise Location | Current position for the nearby-station search, only while the app is in use; the server forwards it to Tankerkönig and does not store it | `GET /stations?lat=&lng=` |
+| Location | Precise Location | Current position for the nearby charging station search, only while the app is in use; the server forwards it to Open Charge Map and caches the result for 6 hours by position rounded to about 100 m | `GET /charging-stations?lat=&lng=` |
 | Diagnostics | Other Diagnostic Data | App version, iOS version and device model, only with feedback | `page` of `POST /feedback` |
 | Diagnostics | Other Diagnostic Data | Device name as iOS reports it (since iOS 16 the model, e.g. "iPhone") and app version for the list of signed-in devices; app version and build with every request (`X-Fuelstat-Client`) | `device` of `POST /auth/login` and `/auth/register`, `POST /auth/session/refresh`, all requests |
 
@@ -33,6 +34,15 @@ Notes:
   the device. It does (to the server and Tankerkönig), so declare "Precise
   Location", even though it is not stored. Not linked to the user if the
   server does not log it — check the server's access logs before submitting.
+  The charging station search (since 0.2.1) sends the position the same way,
+  to Open Charge Map instead of Tankerkönig; unlike the station search, the
+  server caches the result for 6 hours, keyed by the rounded position (check
+  with the server operator whether that cache is linked to the account).
+- **Mail links and notifications (since 0.2.2):** the app sends the token of a
+  confirmation or reset link (and the new password) to the API, and the
+  e-mail notification switches; these belong to the account data above and add
+  no data type. Archiving sends the sale or decommissioning data the user
+  enters (date, odometer, proceeds) as vehicle data.
 - **Trips:** start and end place are text the user types, not a recorded
   position; the app does not track trips.
 - **Local reminders:** due-date notifications are planned on the device from

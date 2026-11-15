@@ -24,6 +24,14 @@ enum APIError: LocalizedError, Equatable {
             case "mail_not_configured": String(localized: "Auf diesem Server ist kein Mailversand eingerichtet.")
             case "smtp_failed": String(localized: "Die Mail konnte nicht verschickt werden. Bitte versuche es später erneut.")
             case "resend_too_soon": String(localized: "Bitte warte eine Minute, bevor du die Mail erneut anforderst.")
+            case "invalid_token": String(localized: "Der Code ist ungültig oder wurde schon benutzt.")
+            case "token_expired": String(localized: "Der Code ist abgelaufen. Fordere eine neue Mail an.")
+            case "vehicle_archived":
+                String(localized: "Dieses Fahrzeug ist archiviert (verkauft oder stillgelegt) und nur lesbar. Aktiviere es wieder, um etwas zu ändern.")
+            case "invalid_status": String(localized: "Der Status des Fahrzeugs ist ungültig.")
+            case "invalid_saleOdometerKm": String(localized: "Der Kilometerstand beim Verkauf ist ungültig.")
+            case "invalid_decommissionedFrom": String(localized: "Das Datum der Stilllegung ist ungültig.")
+            case "invalid_decommissionedUntil": String(localized: "Das Datum bei „Abgemeldet bis“ ist ungültig.")
             case "already_verified": String(localized: "Deine E-Mail-Adresse ist bereits bestätigt.")
             case "mfa_already_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist bereits aktiv.")
             case "mfa_not_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist nicht aktiv.")
@@ -213,10 +221,31 @@ struct APIClient {
         let _: EmptyResponse = try await send("auth/forgot-password", method: "POST", body: ["email": email], token: nil)
     }
 
+    /// Confirms an address with the token from the mail. Needs no sign-in: the token is the proof.
+    func verifyEmail(token: String) async throws -> MailTokenResult {
+        try await send("auth/verify-email", method: "POST", body: ["token": token], token: nil)
+    }
+
+    /// Sets a new password with the token from the mail. The API signs the account out everywhere.
+    func resetPassword(token: String, password: String) async throws -> MailTokenResult {
+        try await send("auth/reset-password", method: "POST", body: ["token": token, "password": password], token: nil)
+    }
+
     /// Changes the password. The API revokes all tokens and sessions, including this one, and returns new ones.
     func changePassword(current: String, new: String, token: String) async throws -> TokenResponse {
         try await send("auth/password", method: "POST", body: ["currentPassword": current, "newPassword": new],
                        token: token)
+    }
+
+    /// Which occasions the server mails about, and the lead time for due dates.
+    func notificationPreferences(token: String) async throws -> NotificationPreferences {
+        try await send("notifications/preferences", token: token)
+    }
+
+    /// Changes one channel or the lead time; the answer is the full state.
+    func updateNotificationPreferences(_ update: NotificationPreferencesUpdate, token: String)
+        async throws -> NotificationPreferences {
+        try await send("notifications/preferences", method: "PUT", body: update, token: token)
     }
 
     func resendVerification(token: String) async throws -> VerificationSent {
@@ -303,6 +332,11 @@ struct APIClient {
         var input = input
         input.sendsNulls = true
         return try await send("vehicles/\(id)", method: "PATCH", body: input, token: token)
+    }
+
+    /// Archives a vehicle as sold or decommissioned, or reactivates it (FuelStat/fuelstat#79).
+    func changeVehicleStatus(id: String, _ change: VehicleStatusChange, token: String) async throws -> RemoteVehicle {
+        try await send("vehicles/\(id)", method: "PATCH", body: change, token: token)
     }
 
     func setVehicleOrder(id: String, sortOrder: Int, token: String) async throws -> RemoteVehicle {

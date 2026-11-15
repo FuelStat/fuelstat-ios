@@ -127,6 +127,19 @@ struct VerificationSent: Decodable {
     let email: String?
 }
 
+/// Response of `POST /auth/verify-email` and `POST /auth/reset-password`: the account the token belonged to
+/// (`email`; reset since FuelStat/fuelstat#175, so it can be missing).
+struct MailTokenResult: Decodable {
+    let email: String?
+
+    enum CodingKeys: String, CodingKey { case email }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        email = c.text(.email)
+    }
+}
+
 struct AuthResponse: Decodable {
     let token: String
     /// Only for app sign-ins with a device (FuelStat/fuelstat#117).
@@ -368,15 +381,32 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
     let role: VehicleRole
     /// Name of the owner, only for vehicles shared with the user.
     let ownerName: String?
+    /// `active`, `sold` or `decommissioned` (FuelStat/fuelstat#79); servers before 0.13.0 send none.
+    let status: VehicleStatus
+    /// Calendar date `YYYY-MM-DD` and odometer of the sale, set when the vehicle was archived as sold.
+    let saleOdometerKm: Double?
+    /// Calendar dates `YYYY-MM-DD` of the decommissioning ("abgemeldet bis" is only an indication).
+    let decommissionedFrom: String?
+    let decommissionedUntil: String?
 
     /// A vehicle of another account that was shared with the user.
     var isShared: Bool { role != .owner }
+
+    /// Sold or decommissioned: readable, but the API refuses every change (409 `vehicle_archived`).
+    var isArchived: Bool { status.isArchived }
+
+    /// Whether the app offers to record entries: not for viewers and not for archived vehicles. The API has the
+    /// last word.
+    var canRecord: Bool { role.canRecord && !isArchived }
 
     enum CodingKeys: String, CodingKey {
         case id, name, brand, model, year, vin, role, fuels
         case defaultFuel = "default_fuel"
         case sortOrder = "sort_order"
         case ownerName = "owner_name"
+        case status
+        case saleOdometerKm = "sale_odometer_km"
+        case decommissionedFrom = "decommissioned_from", decommissionedUntil = "decommissioned_until"
         case fuelType = "fuel_type"
         case imageURL = "image_url"
         case licensePlate = "license_plate"
@@ -430,6 +460,10 @@ struct RemoteVehicle: Decodable, Identifiable, Hashable {
         sortOrder = c.number(.sortOrder).map { Int($0) } ?? 0
         role = c.text(.role).flatMap(VehicleRole.init(rawValue:)) ?? .owner
         ownerName = c.text(.ownerName)
+        status = VehicleStatus(api: c.text(.status))
+        saleOdometerKm = c.number(.saleOdometerKm)
+        decommissionedFrom = c.text(.decommissionedFrom).map { String($0.prefix(10)) }
+        decommissionedUntil = c.text(.decommissionedUntil).map { String($0.prefix(10)) }
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }

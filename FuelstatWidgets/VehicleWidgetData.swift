@@ -24,6 +24,7 @@ struct WidgetVehicleQuery: EntityQuery {
     func suggestedEntities() async throws -> [WidgetVehicleEntity] {
         guard KeychainStore.loadToken() != nil else { return [] }
         return try await SignedInAPI.call(.configured) { api, token in try await api.vehicles(token: token) }
+            .filter { !$0.isArchived }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             .map { WidgetVehicleEntity(id: $0.id, name: $0.name, licensePlate: $0.licensePlate) }
     }
@@ -108,6 +109,7 @@ extension VehicleWidgetEntry {
         do {
             // Renews the device session if needed; the calls below then share the current token.
             let vehicles = try await SignedInAPI.call(api) { api, token in try await api.vehicles(token: token) }
+                .filter { !$0.isArchived }
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             let token = try await TokenStore.shared.accessToken(api: api)
             let chosen = vehicleID.flatMap { id in vehicles.first { $0.id == id } }

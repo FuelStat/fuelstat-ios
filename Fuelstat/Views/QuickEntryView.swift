@@ -11,8 +11,8 @@ struct QuickEntryView: View {
     init(store: VehicleStore, vehicleID: String? = nil, kind: EntryKind) {
         self.store = store
         // Entries can only be recorded for vehicles the user may edit; the API enforces it.
-        let preferred = vehicleID.flatMap(store.vehicle).flatMap { $0.role.canRecord ? $0.id : nil }
-        _vehicleID = State(initialValue: preferred ?? store.vehicles.first(where: \.role.canRecord)?.id)
+        let preferred = vehicleID.flatMap(store.vehicle).flatMap { $0.canRecord ? $0.id : nil }
+        _vehicleID = State(initialValue: preferred ?? store.vehicles.first(where: \.canRecord)?.id)
         _kind = State(initialValue: kind)
     }
 

@@ -31,18 +31,22 @@ https://github.com/FuelStat/fuelstat
 
 ## Development
 
-### Current state (0.2.0 – Foundation)
+### Current state (0.2.2)
 
-Version 0.2.0 is the first regular release
-([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)):
-sign-in and account are complete, and much of
+Version 0.2.2 follows 0.2.1 and 0.2.0
+([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1):
+sign-in and account are complete). It also ships much of
 [0.3.0 – Capture](https://github.com/FuelStat/fuelstat-ios/milestone/2) and
-[0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) is already in.
+[0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) (Statistik,
+charging stations, vehicle master data, onboarding, CSV export, archived
+vehicles, mail links); those milestones stay open until they are complete.
 It still runs only from Xcode on your own device (free developer account,
 valid 7 days); there is no TestFlight or App Store build. Developed against
-Fuelstat server 0.12.1 (device sessions and minimum app version,
-FuelStat/fuelstat#117, #118); with an older server the app falls back to the
-7-day sign-in and has no device list.
+Fuelstat server 0.13.0. It needs 0.12.0 or later for fuel grades and the
+entry list and 0.12.1 for device sessions and the minimum app version
+(FuelStat/fuelstat#117, #118); archived vehicles need 0.13.0
+(FuelStat/fuelstat#79), before that every vehicle counts as active. With an
+older server the app falls back to the 7-day sign-in and has no device list.
 
 The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
 self-hosted servers can be entered on the sign-in screen):
@@ -67,9 +71,30 @@ self-hosted servers can be entered on the sign-in screen):
   "Kilometerstand nachtragen" for fill-ups without a real reading works at any
   time; odometer warnings from the API are shown after saving
 - The "+" sheet has type chips: Tanken, Laden, Ausgabe, Fahrt, Kilometer
+- E-Mail notifications (#31, Profil → Termine → E-Mail-Benachrichtigungen):
+  per occasion (due dates, odometer missing, monthly report, no entry for 30
+  days) the e-mail channel and the lead time, through
+  `PUT /notifications/preferences` (partial: push channels stay untouched).
+  The mail server and the sending are the server's; entering an own SMTP
+  server stays in the web app
 - Expenses (`/entries`) with categories from `GET /categories` (name, icon and
   colour from the API, locked ones marked "mit Plus"); own categories under
   Profil → Kategorien (add, change, delete with moving the expenses)
+- Mail links (#58): the e-mail confirmation and the password reset take the
+  code from the mail or the pasted link (`POST /auth/verify-email`,
+  `/auth/reset-password`); a reset names the signed-in account and never
+  changes the session of another account; `fuelstat://reset-password` and
+  `fuelstat://email-bestaetigt` open the app (needs FuelStat/fuelstat#175, server
+  0.13.0; the link's `server` must be the one in use); the account is reloaded
+  when the app returns to the foreground
+- Onboarding (first start without vehicles): welcome with the two steps
+  "Fahrzeug anlegen" and "Ersten Eintrag erfassen", open invitations to shared
+  vehicles, skippable; Start shows a "first entry" card while a vehicle has no
+  entries. Permissions are asked where they are needed, not up front
+- CSV export of the entries (Einträge → share icon): all entries or one year
+  as a file in the format of the web app's export (semicolon, UTF-8 with BOM,
+  German headers, charging and fuel grade columns), through the share sheet;
+  formatted in `FuelstatCore` from the API's timeline, trips have their own export
 - Trip log (Einträge or vehicle page → Fahrtenbuch): trips per year and
   purpose, totals, business share and estimated costs from `/trips/summary`,
   km per month as a chart, CSV export through the share sheet
@@ -153,6 +178,13 @@ self-hosted servers can be entered on the sign-in screen):
   default, registration, tank and battery, purchase and sale, service and oil
   intervals, insurance, tax and tyres; own vehicles can be reordered under
   Profil → Fahrzeuge (`sortOrder`, FuelStat/fuelstat#181)
+- Archive (FuelStat/fuelstat#79, server 0.13.0 or later): a vehicle can be
+  archived as sold (date, odometer, proceeds) or decommissioned (period) and
+  reactivated, on its page under "Daten". Archived vehicles are listed under
+  Profil → Fahrzeuge → Archiv, stay readable and are not offered for recording,
+  the vehicle switcher, Siri, quick actions and widgets; the API's 409
+  `vehicle_archived` and plan limits (`maxArchivedVehicles`) are shown as
+  messages. Servers before 0.13.0 send no status: every vehicle is active
 - Profil → Tarif: booked plan, end date and what the plan allows from `/whoami`;
   no purchase and no link to one (#32)
 - Several fuel types per vehicle (FuelStat/fuelstat#140, catalog from

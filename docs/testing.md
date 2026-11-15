@@ -95,13 +95,50 @@ truth, so figures must match the web app exactly.
       service
 - [ ] "Konto erstellen" registers a new account (only if
       `registration_enabled` is true in `/health`)
-- [ ] "Passwort vergessen?" sends the reset mail **(hosted only)**
+- [ ] "Passwort vergessen?" sends the reset mail **(hosted only)**; "Ich habe
+      den Code aus der Mail" takes the code **or the whole pasted link**, a
+      new password of at least 8 characters changes it, then sign in with
+      the address already filled in; a wrong or used code and an expired one
+      show their messages
+- [ ] Reset while **signed in** (mail for the own account): the screen names
+      the signed-in account first; afterwards the app signs out with the
+      notice "Passwort geändert" and the address is prefilled
+- [ ] Reset while signed in as account A with a mail for account B: A stays
+      signed in, the message names B **(needs two accounts; the exact
+      address needs FuelStat/fuelstat#175, release 0.13.0; before that the app
+      tests with `/whoami`)**
+- [ ] `fuelstat://reset-password?token=…&server=…` (from Notes or Safari
+      after the server's link page offers it, **0.13.0**) opens the reset
+      sheet; a `server` other than the one in use shows "Es wurde nichts
+      geändert" and sends nothing
+- [ ] `fuelstat://email-bestaetigt?server=…` shows "Deine E-Mail-Adresse ist
+      bestätigt" and Profil updates **(0.13.0)**
 - [ ] Unconfirmed e-mail address: hint is shown, "Bestätigungsmail erneut
-      senden" sends the mail **(hosted only)**
+      senden" sends the mail **(hosted only)**; "Code aus der Mail eingeben"
+      takes the code or the pasted link and the hint disappears; confirming
+      in the browser and coming back to the app clears the hint without
+      restarting
 - [ ] New terms of use (`terms.required` in `/whoami`): prompt appears,
       "Nutzungsbedingungen lesen" opens them, accepting continues – only
       testable when the server's `terms_version` changed; otherwise note
       "not testable"
+
+### 1a. Onboarding
+
+- [ ] New account without vehicles: Start shows the welcome with the steps
+      "Fahrzeug anlegen" and "Ersten Eintrag erfassen"; no permission prompt
+      appears
+- [ ] "Fahrzeug anlegen" opens the vehicle form; after saving, Start shows the
+      vehicle and the card "Ersten Eintrag erfassen" (hidden once the vehicle
+      has an entry or for a view-only share)
+- [ ] "Eintrag erfassen" on the card opens the "+" sheet
+- [ ] "Später" skips the welcome: Start shows the plain "Noch keine Fahrzeuge"
+      state, and the welcome does not return after a restart
+- [ ] Account with an open invitation: the welcome shows the invitation count,
+      "Einladungen ansehen" opens the list, accepting adds the vehicle
+- [ ] Offline start: the load error is shown, not the welcome
+- [ ] VoiceOver reads the title as a heading and each step as one element;
+      Dynamic Type at the largest size and dark mode stay readable
 
 ### 2. Session: renewal and sign-out
 
@@ -171,6 +208,28 @@ truth, so figures must match the web app exactly.
       Teilen …)
 - [ ] Server without plan limits: the footer says all Plus functions are open
 - [ ] Neither a purchase button nor a link to buy a plan anywhere in the app
+
+### 4b. Archive (needs backend 0.13.0)
+
+On a server with FuelStat/fuelstat#79 (check `/health`; before 0.13.0 nothing
+changes and every vehicle stays active).
+
+- [ ] Vehicle page → Daten → "Als verkauft oder stillgelegt archivieren":
+      "Verkauft" with date, odometer and proceeds, or "Stillgelegt" with the
+      period; afterwards the vehicle is under Profil → Fahrzeuge → "Archiv"
+      with its summary, and the web app shows the same status
+- [ ] The vehicle is gone from the switcher, from Start, from the "+" sheet's
+      vehicle picker and from Siri/Shortcuts, quick actions and the widget
+      list; with only archived vehicles Start says "Keine aktiven Fahrzeuge"
+- [ ] Its page shows the banner; no "Tanken erfassen", no "Bearbeiten", no
+      photo change; entries and the chart stay readable
+- [ ] A change made in the web app while the app is open (e.g. archiving):
+      pull to refresh moves the vehicle to the archive; recording on it shows
+      "Dieses Fahrzeug ist archiviert …" (API 409), not "Serverfehler"
+- [ ] "Wieder aktivieren" brings it back everywhere; with plan limits on, an
+      over-limit reactivation or archiving shows the API's plan message
+- [ ] Profil → Tarif lists "Archivierte Fahrzeuge" when the server sends the limit
+- [ ] A shared vehicle that its owner archived shows the banner without a button
 
 ### 5. Vehicle photo
 
@@ -278,7 +337,29 @@ truth, so figures must match the web app exactly.
       vehicle, the entries have no edit actions
 - [ ] Member leaves the vehicle ("Fahrzeug verlassen"); owner removes a member
 
+### 7d. CSV export of the entries
+
+- [ ] Einträge → "Einträge exportieren": the sheet lists the years with
+      entries and the number of entries of the chosen period
+- [ ] "CSV teilen" opens the share sheet with `<Fahrzeugname>[_<Jahr>].csv`;
+      save it to Files and open it in Numbers or Excel: German headers,
+      decimal comma, dates `TT.MM.JJJJ`, umlauts correct
+- [ ] Same vehicle and year as the web app's export (`export.php`): same
+      columns and the same rows (trips are not part of it)
+- [ ] Plug-in hybrid: columns "Einheit" and the charging columns; vehicle with
+      several fuel grades: column "Sorte"
+- [ ] A note starting with `=` or `+` is exported with a leading apostrophe
+- [ ] Vehicle without entries: "CSV teilen" is disabled
+
 ### 8. Statistik, Termine and reminders
+
+- [ ] Profil → Termine → "E-Mail-Benachrichtigungen": the four occasions and
+      the lead time equal the web app's page "Benachrichtigungen" (E-Mail
+      column); switching one on or off and coming back (also in the web app)
+      shows the same state; switching one does not change the others or the
+      push switches in the web app; lead time saves
+- [ ] Server without a mail server: switches are disabled with the hint; with
+      an unconfirmed address the API message is shown ("email_not_verified")
 
 - [ ] Key figures (Ø Verbrauch, Zuletzt with trend arrow, Ø Preis) equal the
       web app's values for the same vehicle
@@ -404,8 +485,8 @@ ship anyway) and are named here.
 ```markdown
 ## Test run (docs/testing.md)
 
-- App: 0.2.0 (build 2), commit abc1234
-- Device: iPhone 14 Pro, iOS 26.1
+- App: 0.2.2 (build 4), commit abc1234
+- Device: iPhone 14 Pro, iOS 27.2
 - Date: 2026-12-01
 
 | Server | API version (`/health`) | Result |

@@ -99,7 +99,8 @@ private struct MainTabs: View {
                 StartView(store: store, selectedID: selection, refresh: refresh,
                           onShowEntries: { tab = .entries },
                           onShowProfile: { tab = .profile },
-                          onManageVehicles: manageVehicles)
+                          onManageVehicles: manageVehicles,
+                          onAddEntry: { openEntry(nil) })
             }
 
             Tab("Einträge", systemImage: "list.bullet.rectangle", value: AppTab.entries) {
@@ -185,7 +186,7 @@ private struct MainTabs: View {
     }
 
     private func openEntry(_ kind: EntryKind?) {
-        guard store.vehicles.contains(where: \.role.canRecord) else { return }
+        guard store.vehicles.contains(where: \.canRecord) else { return }
         if let kind {
             entry = kind
         } else {
@@ -258,9 +259,14 @@ struct VehicleListPlaceholder: View {
                 }
             } else {
                 ContentUnavailableView {
-                    Label("Noch keine Fahrzeuge", systemImage: "car.side")
+                    Label(store.archivedVehicles.isEmpty ? "Noch keine Fahrzeuge" : "Keine aktiven Fahrzeuge",
+                          systemImage: store.archivedVehicles.isEmpty ? "car.side" : "archivebox")
                 } description: {
-                    Text("Lege dein erstes Fahrzeug an, danach kannst du Tank- und Ladevorgänge erfassen.")
+                    if store.archivedVehicles.isEmpty {
+                        Text("Lege dein erstes Fahrzeug an, danach kannst du Tank- und Ladevorgänge erfassen.")
+                    } else {
+                        Text("Alle deine Fahrzeuge sind archiviert. Lege ein neues Fahrzeug an oder aktiviere eines wieder, unter Profil → Fahrzeuge → Archiv.")
+                    }
                 } actions: {
                     Button("Fahrzeug hinzufügen") { showingAddVehicle = true }
                         .buttonStyle(.borderedProminent)
