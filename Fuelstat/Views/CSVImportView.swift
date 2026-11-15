@@ -474,7 +474,7 @@ struct CSVImportView: View {
                 }
                 .disabled(!model.canImport)
                 Button("Zurück zur Zuordnung") { model.backToMapping() }
-                    .disabled(model.isImporting)
+                    .disabled(model.isImporting || model.isChecking)
             }
             .padding(.horizontal, Theme.Spacing.screen)
             .padding(.vertical, Theme.Spacing.xs)
