@@ -477,7 +477,9 @@ struct CostsSection: View {
             } else {
                 summary
                 monthlyChart
+                groupSums
                 structure
+                largestExpenses
                 if year == nil, yearCosts.count > 1 { yearComparison }
             }
         }
@@ -510,6 +512,9 @@ struct CostsSection: View {
         ]
         if let distance = costs.distanceKm {
             rows.append(Row("Gefahrene Strecke", Fmt.kilometres(distance)))
+        }
+        if let maintenance = costs.maintenancePer10000Km {
+            rows.append(Row("Wartung je 10.000 km", StatsFormat.euro(maintenance, currency: costs.currency, digits: 0)))
         }
         if let current = costs.currentMonth {
             rows.append(Row("Laufender Monat", StatsFormat.euro(current.sums.total, currency: costs.currency),
@@ -571,6 +576,46 @@ struct CostsSection: View {
             let sum = data.filter { $0.month == month }.map(\.value).reduce(0, +)
             return "\(StatsFormat.shortMonth(month)): \(StatsFormat.euro(sum, currency: costs.currency, digits: 0))"
         }.joined(separator: ", ")
+    }
+
+    // MARK: Cost groups
+
+    /// Sums per cost group as the API calculates them; names come from `GET /categories`.
+    @ViewBuilder
+    private var groupSums: some View {
+        let groups = costs.groups.filter { $0.count > 0 || $0.total > 0 }
+        if !groups.isEmpty {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                SectionHeader(title: "Kosten nach Gruppe")
+                DetailCard(rows: groups.map { group in
+                    Row(verbatim: categories?.groups.first { $0.key == group.key }?.name ?? group.key,
+                        StatsFormat.euro(group.total, currency: costs.currency),
+                        detail: group.share.map { "\(StatsFormat.number($0, digits: 1)) %" })
+                })
+            }
+        }
+    }
+
+    // MARK: Largest expenses
+
+    @ViewBuilder
+    private var largestExpenses: some View {
+        if !costs.largestExpenses.isEmpty {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                SectionHeader(title: "Größte Einzelausgaben")
+                DetailCard(rows: costs.largestExpenses.map { expense in
+                    Row(verbatim: style.name(expense.category),
+                        StatsFormat.euro(expense.cost, currency: costs.currency),
+                        detail: expenseDetail(expense))
+                })
+            }
+        }
+    }
+
+    private func expenseDetail(_ expense: VehicleCosts.Expense) -> String? {
+        let parts = [expense.date?.formatted(.dateTime.day().month(.abbreviated).year()), expense.vendor,
+                     expense.description].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     // MARK: Cost structure

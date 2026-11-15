@@ -116,9 +116,11 @@ self-hosted servers can be entered on the sign-in screen):
   yearly overview, energy costs per 100 km (best and worst month; the main
   figure of plug-in hybrids) and prices per fuel grade; "Kosten" shows, from
   `/costs`, totals, cost per km and month, a chart per month stacked by
-  category, the cost structure, a year picker and the comparison of years.
-  Maintenance cost per 10,000 km and the biggest single expenses are not
-  shown: the web app calculates them itself, the API has no field for them yet
+  category, sums per cost group, the cost structure, the biggest single
+  expenses, a year picker and the comparison of years. Maintenance cost per
+  10,000 km, the group sums and the biggest expenses come from `/costs`
+  (FuelStat/fuelstat#180, server 0.13.0 or later); an older server simply
+  leaves them out
 - Profil: account, vehicle management, sign out, app and server version,
   feedback to the server operator (`POST /feedback`, with app and iOS version),
   the app's release notes and the server's news page
