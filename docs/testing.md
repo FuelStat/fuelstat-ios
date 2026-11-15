@@ -210,6 +210,9 @@ truth, so figures must match the web app exactly.
 - [ ] More entries load while scrolling (needs more than 50 entries)
 - [ ] Tapping an entry opens its details (consumption of a full fill-up,
       "Erfasst von" on a shared vehicle); Bearbeiten and Löschen work there
+- [ ] The same details open from "Letzte Einträge" on Start, from the
+      vehicle page (Übersicht and Einträge) and from a trip in the
+      Fahrtenbuch; after Bearbeiten or Löschen there, that screen updates
 - [ ] Swipe to edit and to delete; key figures update after a delete
 - [ ] Empty state: "Noch keine Einträge"
 - [ ] Pull to refresh on Start picks up an entry made in the web app

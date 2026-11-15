@@ -53,6 +53,8 @@ enum Route: Hashable {
     case invitations
     case categories
     case allReminders
+    /// One entry of a vehicle, opened from Start, the vehicle page or the trip log.
+    case entry(vehicleID: String, item: TimelineItem)
 }
 
 /// What the quick-entry sheet starts with.
@@ -227,6 +229,8 @@ extension View {
             case .invitations: InvitationsView(store: store)
             case .categories: CategoriesView(store: store)
             case .allReminders: AllRemindersView(store: store)
+            // The other screens reload through `store.entryChanges`.
+            case .entry(let vehicleID, let item): EntryDetailView(store: store, vehicleID: vehicleID, item: item) {}
             }
         }
     }

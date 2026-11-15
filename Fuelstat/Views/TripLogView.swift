@@ -55,15 +55,17 @@ struct TripLogView: View {
                     .listRowSeparator(.hidden)
 
                 ForEach(trips) { trip in
-                    TripRow(trip: trip)
-                        .listRowBackground(Theme.card)
-                        .swipeActions(edge: .trailing) {
-                            if canRecord {
-                                Button("Löschen", systemImage: "trash", role: .destructive) { deleting = trip }
-                                Button("Bearbeiten", systemImage: "pencil") { editing = trip }
-                                    .tint(Theme.brand)
-                            }
+                    NavigationLink(value: Route.entry(vehicleID: vehicleID, item: TimelineItem(trip: trip))) {
+                        TripRow(trip: trip)
+                    }
+                    .listRowBackground(Theme.card)
+                    .swipeActions(edge: .trailing) {
+                        if canRecord {
+                            Button("Löschen", systemImage: "trash", role: .destructive) { deleting = trip }
+                            Button("Bearbeiten", systemImage: "pencil") { editing = trip }
+                                .tint(Theme.brand)
                         }
+                    }
                 }
 
                 if trips.isEmpty, !isLoading {

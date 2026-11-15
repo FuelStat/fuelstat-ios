@@ -8,7 +8,7 @@ struct RemoteVehicleDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var fillups: [RemoteFillup] = []
+    @State private var latest: [TimelineItem] = []
     @State private var errorMessage: String?
     @State private var showingEdit = false
     @State private var showingFillup = false
@@ -67,7 +67,7 @@ struct RemoteVehicleDetailView: View {
                     switch segment {
                     case .overview: overview(vehicle)
                     case .entries:
-                        RecentEntriesCard(fillups: fillups, fuelType: vehicle.fuelType)
+                        RecentEntriesCard(store: store, vehicle: vehicle, items: latest)
                     case .statistics:
                         ConsumptionChartCard(stats: store.stats[vehicle.id], fuelType: vehicle.fuelType,
                                              range: $chartRange, catalog: store.fuelCatalog)
@@ -117,7 +117,7 @@ struct RemoteVehicleDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
-        .task { await load() }
+        .task(id: store.entryChanges) { await load() }
         .sheet(isPresented: $showingEdit) {
             RemoteVehicleFormView(store: store, editing: vehicle)
         }
@@ -216,7 +216,7 @@ struct RemoteVehicleDetailView: View {
             RemindersCard(reminders: reminders)
         }
         .buttonStyle(.plain)
-        RecentEntriesCard(fillups: Array(fillups.prefix(Self.recentCount)), fuelType: vehicle.fuelType) {
+        RecentEntriesCard(store: store, vehicle: vehicle, items: Array(latest.prefix(Self.recentCount))) {
             segment = .entries
         }
     }
@@ -226,10 +226,10 @@ struct RemoteVehicleDetailView: View {
     private func load() async {
         do {
             async let reloaded = store.reload(vehicleID)
-            async let latest = store.fillups(of: vehicleID, limit: Self.entriesCount)
+            async let entries = store.latestFillups(of: vehicleID, limit: Self.entriesCount)
             async let due = try? store.reminders(of: vehicleID)
             _ = try await reloaded
-            fillups = try await latest
+            latest = try await entries
             reminders = await due ?? reminders
             errorMessage = nil
         } catch is CancellationError {

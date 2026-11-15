@@ -103,6 +103,33 @@ struct TimelineItem: Decodable, Identifiable, Hashable {
         createdByName = c.text(.createdByName)
     }
 
+    /// A trip of the trip log (`GET /trips`) as the timeline lists it, so it opens the same entry page.
+    init(trip: RemoteTrip) {
+        source = .trip
+        kind = .trip
+        rawID = trip.id
+        date = trip.startedAt
+        category = nil
+        cost = nil
+        countsAsCost = false
+        amount = nil
+        unit = nil
+        fuel = nil
+        odometerKm = trip.odometerEnd
+        odometerEstimated = false
+        isFull = nil
+        skipPrevious = nil
+        place = nil
+        description = trip.note
+        purpose = trip.purpose
+        distanceKm = trip.distanceKm
+        startPlace = trip.startPlace
+        endPlace = trip.endPlace
+        consumption = nil
+        createdBy = trip.createdBy
+        createdByName = trip.createdByName
+    }
+
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }

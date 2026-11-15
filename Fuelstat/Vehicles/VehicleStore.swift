@@ -230,6 +230,11 @@ final class VehicleStore {
         }
     }
 
+    /// The latest fill-ups and charging sessions as timeline rows, so they open the entry page.
+    func latestFillups(of id: String, limit: Int) async throws -> [TimelineItem] {
+        try await timeline(of: id, page: 1, perPage: limit, kinds: [.fuel, .charge], search: nil).items
+    }
+
     /// Counts saved, changed and deleted entries, so open screens know when to reload.
     private(set) var entryChanges = 0
 
