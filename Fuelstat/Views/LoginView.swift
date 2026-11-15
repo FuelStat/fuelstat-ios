@@ -149,6 +149,14 @@ private struct SignInForm: View {
         case email, password
     }
 
+    /// After a password reset the address is filled in, so only the new password is missing.
+    private func applyPrefill() {
+        if email.isEmpty, let address = auth.prefillEmail {
+            email = address
+            auth.prefillEmail = nil
+        }
+    }
+
     private var canSubmit: Bool {
         let emailOK = email.contains("@")
         let passwordOK = mode == .register ? password.count >= 8 : !password.isEmpty
@@ -192,6 +200,7 @@ private struct SignInForm: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Theme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: applyPrefill)
         .onChange(of: mode) {
             errorMessage = nil
             needsMFA = false

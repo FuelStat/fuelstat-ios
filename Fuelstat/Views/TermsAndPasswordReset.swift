@@ -103,6 +103,9 @@ struct ForgotPasswordView: View {
                             Image(systemName: "envelope.badge")
                                 .foregroundStyle(Theme.Status.ok)
                         }
+                        NavigationLink("Ich habe den Code aus der Mail") {
+                            ResetPasswordView(token: nil, isPushed: true)
+                        }
                     }
                     .listRowBackground(Theme.card)
                 } else {
@@ -152,6 +155,115 @@ struct ForgotPasswordView: View {
         do {
             try await auth.api.forgotPassword(email: trimmed)
             sent = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+/// "Code aus der Mail + neues Passwort" (`POST /auth/reset-password`), reached from "Passwort vergessen?" or from a
+/// `fuelstat://reset-password` link. With a signed-in account it says which account is signed in, because the mail
+/// may belong to another one; this session is never changed for another account.
+struct ResetPasswordView: View {
+    @Environment(AuthSession.self) private var auth
+    @Environment(\.dismiss) private var dismiss
+
+    /// Set when the link carried the token; otherwise the user pastes the code or the whole link.
+    let token: String?
+    /// Whether the screen is pushed inside another navigation stack (no own close button then).
+    var isPushed = false
+
+    @State private var input = ""
+    @State private var password = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var result: AuthSession.ResetOutcome?
+
+    private var resolvedToken: String? { token ?? MailToken.extract(from: input) }
+    private var canSave: Bool { resolvedToken != nil && password.count >= 8 && !isSaving }
+
+    var body: some View {
+        if isPushed { form } else { NavigationStack { form }.tint(Theme.brand) }
+    }
+
+    private var form: some View {
+        Form {
+            if let result {
+                Section {
+                    switch result {
+                    case .signInAgain:
+                        Label("Passwort geändert. Melde dich jetzt mit dem neuen Passwort an.", systemImage: "checkmark.circle")
+                            .foregroundStyle(Theme.Status.ok)
+                    case .otherAccount(let email):
+                        if let email, let own = auth.user?.email {
+                            Label("Passwort für \(email) geändert. Du bleibst als \(own) angemeldet.", systemImage: "checkmark.circle")
+                                .foregroundStyle(Theme.Status.ok)
+                        } else {
+                            Label("Das Passwort eines anderen Kontos wurde geändert. Du bleibst angemeldet.", systemImage: "checkmark.circle")
+                                .foregroundStyle(Theme.Status.ok)
+                        }
+                    }
+                }
+                .listRowBackground(Theme.card)
+            } else {
+                if let own = auth.user?.email {
+                    Section {
+                        Label("Du setzt das Passwort für das Konto aus der Mail zurück. Angemeldet bist du als \(own).",
+                              systemImage: "person.crop.circle.badge.exclamationmark")
+                            .font(.subheadline)
+                    }
+                    .listRowBackground(Theme.card)
+                }
+                if token == nil {
+                    Section {
+                        TextField("Code oder Link aus der Mail", text: $input)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .accessibilityLabel("Code oder Link aus der Mail")
+                    } footer: {
+                        Text("Kopiere den Code aus der Mail oder den ganzen Link und füge ihn hier ein.")
+                    }
+                    .listRowBackground(Theme.card)
+                }
+                Section {
+                    SecureField("Neues Passwort", text: $password)
+                        .textContentType(.newPassword)
+                } footer: {
+                    Text("Mindestens 8 Zeichen. Danach bist du auf allen Geräten abgemeldet.")
+                }
+                .listRowBackground(Theme.card)
+                ErrorSection(message: errorMessage)
+            }
+        }
+        .themedBackground()
+        .navigationTitle("Neues Passwort")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !isPushed || result != nil {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(result == nil ? "Abbrechen" : "Fertig") { dismiss() }
+                }
+            }
+            if result == nil {
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Ändern") { Task { await save() } }
+                            .disabled(!canSave)
+                    }
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        guard let resolvedToken else { return }
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        do {
+            result = try await auth.resetPassword(token: resolvedToken, password: password)
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -1,3 +1,4 @@
+import FuelstatCore
 import PhotosUI
 import SwiftUI
 
@@ -195,6 +196,8 @@ struct EmailConfirmationNotice: View {
     @State private var isSending = false
     @State private var message: String?
     @State private var failed = false
+    @State private var code = ""
+    @State private var isConfirming = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
@@ -229,8 +232,46 @@ struct EmailConfirmationNotice: View {
             .foregroundStyle(Theme.brand)
             .disabled(isSending)
             .buttonStyle(.borderless)
+
+            DisclosureGroup("Code aus der Mail eingeben") {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    TextField("Code oder Link", text: $code)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .accessibilityLabel("Code oder Link aus der Mail")
+                    Button {
+                        Task { await confirm() }
+                    } label: {
+                        if isConfirming { ProgressView() } else { Text("Bestätigen") }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.brand)
+                    .disabled(isConfirming || MailToken.extract(from: code) == nil)
+                    .buttonStyle(.borderless)
+                }
+            }
+            .font(.subheadline)
         }
         .padding(.vertical, Theme.Spacing.xxs)
+    }
+
+    private func confirm() async {
+        isConfirming = true
+        defer { isConfirming = false }
+        do {
+            switch try await auth.verifyEmail(input: code) {
+            case .other(let email):
+                failed = false
+                message = String(localized: "\(email) ist jetzt bestätigt. Das ist nicht dein angemeldetes Konto, dort hat sich nichts geändert.")
+            case .own, .unknown:
+                failed = false
+                code = ""
+                message = String(localized: "Deine E-Mail-Adresse ist bestätigt.")
+            }
+        } catch {
+            failed = true
+            message = error.localizedDescription
+        }
     }
 
     private func resend() async {

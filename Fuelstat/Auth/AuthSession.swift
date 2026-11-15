@@ -1,4 +1,5 @@
 import Foundation
+import FuelstatCore
 import Observation
 import UIKit
 
@@ -17,7 +18,26 @@ final class AuthSession {
     private(set) var api: APIClient
     /// Why the user was signed out without asking for it, shown on the sign-in screen.
     private(set) var signOutNotice: String?
+    /// An address to prefill on the sign-in screen, e.g. after a password reset.
+    var prefillEmail: String?
+    /// A reset link the user opened, to be shown as a sheet.
+    var resetRequest: ResetRequest?
+    /// Result of a mail link (wrong server, address confirmed), shown once as an alert.
+    var mailLinkNotice: String?
     @ObservationIgnored private var isRenewing = false
+
+    struct ResetRequest: Identifiable {
+        let token: String
+        var id: String { token }
+    }
+
+    /// What a password reset did to this sign-in.
+    enum ResetOutcome: Equatable {
+        /// The account of this app (or nobody was signed in): sign in again with the new password.
+        case signInAgain(email: String?)
+        /// A different account than the signed-in one: this session stays untouched.
+        case otherAccount(email: String?)
+    }
 
     /// The API extends a token by 7 days per refresh; renewing once a day is plenty.
     private static let renewalInterval: TimeInterval = 20 * 60 * 60
@@ -152,6 +172,78 @@ final class AuthSession {
         token = renewed.token
         UserDefaults.standard.set(Date.now, forKey: Self.renewedAtKey)
         WidgetRefresh.reload()
+    }
+
+    /// Confirms the address of a code or link from the mail. Returns whose address it was: a link can belong to
+    /// another account than the signed-in one, then only the address is reported.
+    func verifyEmail(input: String) async throws -> MailAccount {
+        guard let token = MailToken.extract(from: input) else {
+            throw APIError.server(code: "invalid_token", status: 400)
+        }
+        let result = try await api.verifyEmail(token: token)
+        // Reading the own account changes nothing, so this is safe for a foreign address too.
+        await refreshUser()
+        return affectedAccount(result.email)
+    }
+
+    /// Sets a new password with the code from the mail. Never changes the session of a different account.
+    func resetPassword(token: String, password: String) async throws -> ResetOutcome {
+        let result = try await api.resetPassword(token: token, password: password)
+        prefillEmail = result.email ?? user?.email
+        guard user != nil else { return .signInAgain(email: result.email) }
+        switch affectedAccount(result.email) {
+        case .own:
+            // The API revoked every token of this account.
+            clear(notice: String(localized: "Passwort geändert. Bitte melde dich neu an."))
+            return .signInAgain(email: result.email)
+        case .other(let email):
+            return .otherAccount(email: email)
+        case .unknown:
+            // Server before FuelStat/fuelstat#175 names no account: if our own token still works, it was another one
+            // (a 401 signs this device out, which is right when it was the own account).
+            if (try? await call({ try await $0.whoami(token: $1) })) != nil {
+                return .otherAccount(email: nil)
+            }
+            return .signInAgain(email: nil)
+        }
+    }
+
+    /// Compares the address of a mail link with the signed-in account (its confirmed or pending address).
+    private func affectedAccount(_ email: String?) -> MailAccount {
+        let ownAddress = MailAccount.compare(signedIn: user?.email, affected: email)
+        if ownAddress == .own { return .own }
+        if case .other = ownAddress, user?.pendingEmail != nil,
+           MailAccount.compare(signedIn: user?.pendingEmail, affected: email) == .own {
+            return .own
+        }
+        return ownAddress
+    }
+
+    /// Handles `fuelstat://reset-password` and `fuelstat://email-bestaetigt`. The link names its server; one that is
+    /// not the signed-in server is not acted on, so a token never goes to another server.
+    func handle(_ link: AppLink) {
+        switch link {
+        case .resetPassword(let token, let server):
+            if MailServer.matches(linkServer: server, current: api.baseURL) {
+                resetRequest = ResetRequest(token: token)
+            } else {
+                mailLinkNotice = wrongServerNotice(server)
+            }
+        case .emailConfirmed(let server):
+            if MailServer.matches(linkServer: server, current: api.baseURL) {
+                mailLinkNotice = String(localized: "Deine E-Mail-Adresse ist bestätigt.")
+                Task { await refreshUser() }
+            } else {
+                mailLinkNotice = wrongServerNotice(server)
+            }
+        default:
+            break
+        }
+    }
+
+    private func wrongServerNotice(_ server: String?) -> String {
+        let name = server ?? "?"
+        return String(localized: "Der Link gehört zum Server \(name), die App ist aber mit \(ServerSettings.displayName(of: api.baseURL)) verbunden. Es wurde nichts geändert.")
     }
 
     /// Sends the confirmation mail again. Returns the address it went to.
