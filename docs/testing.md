@@ -413,6 +413,11 @@ changes and every vehicle stays active).
       equal the web app's "Ausgaben" tab; year chips switch the period; the
       chart "Ausgaben je Monat" is stacked by category with the category
       colours; "Kostenstruktur" lists every category with amount and count
+- [ ] **Server with FuelStat/fuelstat#180 (0.13.0 or later):** "Kosten nach
+      Gruppe" lists the cost groups with amount and share, "Wartung je 10.000 km"
+      appears in the summary, "Größte Einzelausgaben" lists up to five
+      expenses; all equal the web app's "Ausgaben" tab. On an older server
+      these three are missing and nothing else changes
 - [ ] "Jahresvergleich" appears with "Gesamt" selected and at least two years
 - [ ] Vehicle without entries: "Noch keine Kosten …", no empty charts
 - [ ] VoiceOver reads each chart's summary and the rows as one line each
@@ -517,7 +522,7 @@ ship anyway) and are named here.
 ```markdown
 ## Test run (docs/testing.md)
 
-- App: 0.2.1 (build 3), commit abc1234
+- App: 0.2.2 (build 4), commit abc1234
 - Device: iPhone 14 Pro, iOS 27.2
 - Date: 2026-12-01
 

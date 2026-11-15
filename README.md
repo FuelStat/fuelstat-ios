@@ -31,20 +31,22 @@ https://github.com/FuelStat/fuelstat
 
 ## Development
 
-### Current state (0.2.1)
+### Current state (0.2.2)
 
-Version 0.2.1 follows 0.2.0
-([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1)),
-where sign-in and account are complete. It also ships much of
+Version 0.2.2 follows 0.2.1 and 0.2.0
+([0.2.0 – Foundation](https://github.com/FuelStat/fuelstat-ios/milestone/1):
+sign-in and account are complete). It also ships much of
 [0.3.0 – Capture](https://github.com/FuelStat/fuelstat-ios/milestone/2) and
 [0.4.0](https://github.com/FuelStat/fuelstat-ios/milestone/3) (Statistik,
-charging stations, vehicle master data, onboarding, CSV export); those
-milestones stay open until they are complete. It still runs only from Xcode on your own device (free developer account,
+charging stations, vehicle master data, onboarding, CSV export, archived
+vehicles, mail links); those milestones stay open until they are complete.
+It still runs only from Xcode on your own device (free developer account,
 valid 7 days); there is no TestFlight or App Store build. Developed against
-Fuelstat server 0.12.2 (needs 0.12.0 or later for fuel grades and the entry
-list, 0.12.1 for device sessions and the minimum app version,
-FuelStat/fuelstat#117, #118); with an older server the app falls back to the
-7-day sign-in and has no device list.
+Fuelstat server 0.13.0. It needs 0.12.0 or later for fuel grades and the
+entry list and 0.12.1 for device sessions and the minimum app version
+(FuelStat/fuelstat#117, #118); archived vehicles need 0.13.0
+(FuelStat/fuelstat#79), before that every vehicle counts as active. With an
+older server the app falls back to the 7-day sign-in and has no device list.
 
 The app talks to the Fuelstat API (`https://tanken.1emc.de/api/v1` by default;
 self-hosted servers can be entered on the sign-in screen):
@@ -125,9 +127,11 @@ self-hosted servers can be entered on the sign-in screen):
   yearly overview, energy costs per 100 km (best and worst month; the main
   figure of plug-in hybrids) and prices per fuel grade; "Kosten" shows, from
   `/costs`, totals, cost per km and month, a chart per month stacked by
-  category, the cost structure, a year picker and the comparison of years.
-  Maintenance cost per 10,000 km and the biggest single expenses are not
-  shown: the web app calculates them itself, the API has no field for them yet
+  category, sums per cost group, the cost structure, the biggest single
+  expenses, a year picker and the comparison of years. Maintenance cost per
+  10,000 km, the group sums and the biggest expenses come from `/costs`
+  (FuelStat/fuelstat#180, server 0.13.0 or later); an older server simply
+  leaves them out
 - Profil: account, vehicle management, sign out, app and server version,
   feedback to the server operator (`POST /feedback`, with app and iOS version),
   the app's release notes and the server's news page

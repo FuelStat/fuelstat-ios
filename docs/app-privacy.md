@@ -38,6 +38,11 @@ Notes:
   to Open Charge Map instead of Tankerkönig; unlike the station search, the
   server caches the result for 6 hours, keyed by the rounded position (check
   with the server operator whether that cache is linked to the account).
+- **Mail links and notifications (since 0.2.2):** the app sends the token of a
+  confirmation or reset link (and the new password) to the API, and the
+  e-mail notification switches; these belong to the account data above and add
+  no data type. Archiving sends the sale or decommissioning data the user
+  enters (date, odometer, proceeds) as vehicle data.
 - **Trips:** start and end place are text the user types, not a recorded
   position; the app does not track trips.
 - **Local reminders:** due-date notifications are planned on the device from
