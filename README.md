@@ -70,6 +70,10 @@ self-hosted servers can be entered on the sign-in screen):
 - Expenses (`/entries`) with categories from `GET /categories` (name, icon and
   colour from the API, locked ones marked "mit Plus"); own categories under
   Profil → Kategorien (add, change, delete with moving the expenses)
+- Onboarding (first start without vehicles): welcome with the two steps
+  "Fahrzeug anlegen" and "Ersten Eintrag erfassen", open invitations to shared
+  vehicles, skippable; Start shows a "first entry" card while a vehicle has no
+  entries. Permissions are asked where they are needed, not up front
 - Trip log (Einträge or vehicle page → Fahrtenbuch): trips per year and
   purpose, totals, business share and estimated costs from `/trips/summary`,
   km per month as a chart, CSV export through the share sheet

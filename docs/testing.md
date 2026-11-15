@@ -103,6 +103,23 @@ truth, so figures must match the web app exactly.
       testable when the server's `terms_version` changed; otherwise note
       "not testable"
 
+### 1a. Onboarding
+
+- [ ] New account without vehicles: Start shows the welcome with the steps
+      "Fahrzeug anlegen" and "Ersten Eintrag erfassen"; no permission prompt
+      appears
+- [ ] "Fahrzeug anlegen" opens the vehicle form; after saving, Start shows the
+      vehicle and the card "Ersten Eintrag erfassen" (hidden once the vehicle
+      has an entry or for a view-only share)
+- [ ] "Eintrag erfassen" on the card opens the "+" sheet
+- [ ] "Später" skips the welcome: Start shows the plain "Noch keine Fahrzeuge"
+      state, and the welcome does not return after a restart
+- [ ] Account with an open invitation: the welcome shows the invitation count,
+      "Einladungen ansehen" opens the list, accepting adds the vehicle
+- [ ] Offline start: the load error is shown, not the welcome
+- [ ] VoiceOver reads the title as a heading and each step as one element;
+      Dynamic Type at the largest size and dark mode stay readable
+
 ### 2. Session: renewal and sign-out
 
 - [ ] Quit and reopen the app: still signed in, no sign-in screen
