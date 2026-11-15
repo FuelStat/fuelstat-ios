@@ -9,6 +9,12 @@ struct ReleaseNote: Identifiable {
     var id: String { version }
 
     static let all: [ReleaseNote] = [
+        ReleaseNote(version: "0.2.2", date: "November 2026", items: [
+            "Verkaufte und stillgelegte Fahrzeuge: Du archivierst ein Fahrzeug mit Verkaufsdaten oder Stilllegung und aktivierst es jederzeit wieder. Archivierte Fahrzeuge bleiben lesbar, stehen unter Profil → Fahrzeuge → Archiv und tauchen beim Erfassen, in Siri, Kurzbefehlen und im Widget nicht mehr auf",
+            "Links aus E-Mails öffnen die App: E-Mail-Adresse bestätigen und Passwort zurücksetzen gehen direkt in Fuelstat, auch mit dem Code aus der Mail",
+            "E-Mail-Benachrichtigungen je Anlass (Termine, Berichte) stellst du unter Profil → Termine ein",
+            "Archivierte Fahrzeuge zählen in deinem Tarif unter „Archivierte Fahrzeuge“",
+        ]),
         ReleaseNote(version: "0.2.1", date: "November 2026", items: [
             "Die App braucht jetzt iOS 27 oder neuer",
             "Statistik mit Verbrauch und Kosten: Durchschnitt, niedrigster und höchster Wert, Verbrauch und Kosten je Monat und Jahr, Preise je Sorte, CO₂ und ein Jahresvergleich",
