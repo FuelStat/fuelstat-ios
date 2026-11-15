@@ -145,6 +145,10 @@ self-hosted servers can be entered on the sign-in screen):
   Autogas) and sends `fuel`; the price is prefilled from the last fill-up of
   that type; the station search uses the type's Tankerkönig fuel; key figures
   and charts per energy (`energies` in `/stats`, side energies marked)
+- Charging stations nearby (`GET /charging-stations`, Open Charge Map): cards
+  with power, plugs and distance in the charging sheet, the full list with
+  charge points and the operator's price note, recently used ones first,
+  source shown as the licence asks
 - Record fill-ups and charging sessions: last vehicle and last price prefilled,
   any two of amount, price per unit and total give the third, odometer warnings
   from the API are shown

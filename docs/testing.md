@@ -178,6 +178,11 @@ truth, so figures must match the web app exactly.
       open, "So speichern" keeps it
 - [ ] Decimal comma input (e.g. `45,67`) is accepted
 - [ ] Charging session on the electric or plug-in vehicle, in kWh
+- [ ] Charging sheet: "Ladestationen in der Nähe" shows cards with power
+      ("bis 150 kW"), plugs and distance; tapping one fills "Ladestation";
+      "Alle" lists them with Ladepunkte and the operator's price note; the
+      Open Charge Map attribution is visible **(hosted only)**; a station out
+      of order is marked "außer Betrieb"
 - [ ] Vehicle with several fuel types (web app: Antriebsart → Erweitert, e.g.
       Super E5 + Autogas): the sheet shows "Sorte" chips, the default type is
       preselected; switching the type prefills the price of the last fill-up
@@ -285,6 +290,8 @@ truth, so figures must match the web app exactly.
 - [ ] "Tankstellen in der Nähe" lists stations with prices and the
       Tankerkönig attribution **(hosted only)**
 - [ ] Without a Tankerkönig key: "Keine Tankstellen" (self-hosted)
+- [ ] Without an Open Charge Map key (`OCM_API_KEY`): the charging sheet says
+      the search is not set up on this server (self-hosted)
 - [ ] Profil → Rechtliches: Impressum, Datenschutz, Nutzungsbedingungen open
       the pages of the server in use
 - [ ] Profil → Neuigkeiten opens the server's news page

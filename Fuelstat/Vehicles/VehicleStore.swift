@@ -392,6 +392,12 @@ final class VehicleStore {
         }
     }
 
+    func chargingStations(near latitude: Double, _ longitude: Double) async throws -> ChargingStationsResponse {
+        try await auth.call {
+            try await $0.chargingStations(latitude: latitude, longitude: longitude, radiusKm: 10, token: $1)
+        }
+    }
+
     /// The vehicle used for the last fill-up, as default for the next one.
     var lastUsedVehicleID: String? {
         let id = Self.storedLastVehicleID
