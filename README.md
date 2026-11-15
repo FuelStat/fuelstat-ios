@@ -70,6 +70,10 @@ self-hosted servers can be entered on the sign-in screen):
 - Expenses (`/entries`) with categories from `GET /categories` (name, icon and
   colour from the API, locked ones marked "mit Plus"); own categories under
   Profil → Kategorien (add, change, delete with moving the expenses)
+- CSV export of the entries (Einträge → share icon): all entries or one year
+  as a file in the format of the web app's export (semicolon, UTF-8 with BOM,
+  German headers, charging and fuel grade columns), through the share sheet;
+  formatted in `FuelstatCore` from the API's timeline, trips have their own export
 - Trip log (Einträge or vehicle page → Fahrtenbuch): trips per year and
   purpose, totals, business share and estimated costs from `/trips/summary`,
   km per month as a chart, CSV export through the share sheet
