@@ -72,6 +72,13 @@ self-hosted servers can be entered on the sign-in screen):
 - Expenses (`/entries`) with categories from `GET /categories` (name, icon and
   colour from the API, locked ones marked "mit Plus"); own categories under
   Profil → Kategorien (add, change, delete with moving the expenses)
+- Mail links (#58): the e-mail confirmation and the password reset take the
+  code from the mail or the pasted link (`POST /auth/verify-email`,
+  `/auth/reset-password`); a reset names the signed-in account and never
+  changes the session of another account; `fuelstat://reset-password` and
+  `fuelstat://email-bestaetigt` open the app (needs FuelStat/fuelstat#175, server
+  0.13.0; the link's `server` must be the one in use); the account is reloaded
+  when the app returns to the foreground
 - Onboarding (first start without vehicles): welcome with the two steps
   "Fahrzeug anlegen" and "Ersten Eintrag erfassen", open invitations to shared
   vehicles, skippable; Start shows a "first entry" card while a vehicle has no

@@ -24,6 +24,8 @@ enum APIError: LocalizedError, Equatable {
             case "mail_not_configured": String(localized: "Auf diesem Server ist kein Mailversand eingerichtet.")
             case "smtp_failed": String(localized: "Die Mail konnte nicht verschickt werden. Bitte versuche es später erneut.")
             case "resend_too_soon": String(localized: "Bitte warte eine Minute, bevor du die Mail erneut anforderst.")
+            case "invalid_token": String(localized: "Der Code ist ungültig oder wurde schon benutzt.")
+            case "token_expired": String(localized: "Der Code ist abgelaufen. Fordere eine neue Mail an.")
             case "already_verified": String(localized: "Deine E-Mail-Adresse ist bereits bestätigt.")
             case "mfa_already_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist bereits aktiv.")
             case "mfa_not_enabled": String(localized: "Die Zwei-Faktor-Anmeldung ist nicht aktiv.")
@@ -211,6 +213,16 @@ struct APIClient {
     /// Asks for a password reset link. The API answers the same whether the account exists or not.
     func forgotPassword(email: String) async throws {
         let _: EmptyResponse = try await send("auth/forgot-password", method: "POST", body: ["email": email], token: nil)
+    }
+
+    /// Confirms an address with the token from the mail. Needs no sign-in: the token is the proof.
+    func verifyEmail(token: String) async throws -> MailTokenResult {
+        try await send("auth/verify-email", method: "POST", body: ["token": token], token: nil)
+    }
+
+    /// Sets a new password with the token from the mail. The API signs the account out everywhere.
+    func resetPassword(token: String, password: String) async throws -> MailTokenResult {
+        try await send("auth/reset-password", method: "POST", body: ["token": token, "password": password], token: nil)
     }
 
     /// Changes the password. The API revokes all tokens and sessions, including this one, and returns new ones.

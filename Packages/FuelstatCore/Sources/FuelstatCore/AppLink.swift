@@ -8,6 +8,10 @@ public enum AppLink: Equatable, Sendable {
     case addEntry(kind: String?, vehicleID: String?)
     /// `fuelstat://vehicle/<id>`
     case vehicle(String)
+    /// `fuelstat://reset-password?token=…&server=…` from the reset mail (FuelStat/fuelstat#175).
+    case resetPassword(token: String, server: String?)
+    /// `fuelstat://email-bestaetigt?server=…`: the address was confirmed in the browser.
+    case emailConfirmed(server: String?)
 
     public var url: URL {
         var components = URLComponents()
@@ -22,6 +26,13 @@ public enum AppLink: Equatable, Sendable {
         case .vehicle(let id):
             components.host = "vehicle"
             components.path = "/" + id
+        case .resetPassword(let token, let server):
+            components.host = "reset-password"
+            components.queryItems = [URLQueryItem(name: "token", value: token)]
+                + (server.map { [URLQueryItem(name: "server", value: $0)] } ?? [])
+        case .emailConfirmed(let server):
+            components.host = "email-bestaetigt"
+            components.queryItems = server.map { [URLQueryItem(name: "server", value: $0)] }
         }
         return components.url!
     }
@@ -41,6 +52,11 @@ public enum AppLink: Equatable, Sendable {
             let id = components.path.split(separator: "/").first.map(String.init)
             guard let id, !id.isEmpty else { return nil }
             self = .vehicle(id)
+        case "reset-password":
+            guard let token = value("token") else { return nil }
+            self = .resetPassword(token: token, server: value("server"))
+        case "email-bestaetigt":
+            self = .emailConfirmed(server: value("server"))
         default:
             return nil
         }

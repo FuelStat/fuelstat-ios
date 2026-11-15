@@ -127,6 +127,19 @@ struct VerificationSent: Decodable {
     let email: String?
 }
 
+/// Response of `POST /auth/verify-email` and `POST /auth/reset-password`: the account the token belonged to
+/// (`email`; reset since FuelStat/fuelstat#175, so it can be missing).
+struct MailTokenResult: Decodable {
+    let email: String?
+
+    enum CodingKeys: String, CodingKey { case email }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        email = c.text(.email)
+    }
+}
+
 struct AuthResponse: Decodable {
     let token: String
     /// Only for app sign-ins with a device (FuelStat/fuelstat#117).

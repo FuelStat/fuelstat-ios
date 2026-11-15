@@ -28,6 +28,9 @@ struct FuelstatApp: App {
                                                                 vehicleID: vehicleID)
                     case .vehicle(let id):
                         IntentRouter.shared.pending = .openVehicle(id)
+                    // Links from the mails (FuelStat/fuelstat#175, fuelstat-ios #58)
+                    case .resetPassword, .emailConfirmed:
+                        if let link = AppLink(url: url) { auth.handle(link) }
                     case nil:
                         break
                     }
@@ -37,7 +40,11 @@ struct FuelstatApp: App {
         .onChange(of: scenePhase) {
             // Keep active users signed in: renew the token when the app comes to the foreground.
             if scenePhase == .active {
-                Task { await auth.renewIfNeeded() }
+                Task {
+                    await auth.renewIfNeeded()
+                    // An address confirmed in the browser shows up as soon as the user comes back.
+                    if auth.user?.needsEmailConfirmation == true { await auth.refreshUser() }
+                }
             }
         }
     }
@@ -67,7 +74,18 @@ private struct RootView: View {
     @State private var requiredVersion: String?
 
     var body: some View {
+        @Bindable var auth = auth
         content
+            .sheet(item: $auth.resetRequest) { request in
+                ResetPasswordView(token: request.token)
+            }
+            .alert("Link aus der Mail", isPresented: Binding(
+                get: { auth.mailLinkNotice != nil }, set: { if !$0 { auth.mailLinkNotice = nil } }
+            )) {
+                Button("OK") { auth.mailLinkNotice = nil }
+            } message: {
+                Text(auth.mailLinkNotice ?? "")
+            }
             .fullScreenCover(item: Binding(get: { requiredVersion.map(RequiredUpdate.init) }, set: { _ in })) { update in
                 AppUpdateRequiredView(minimumVersion: update.version) { await checkVersion() }
             }

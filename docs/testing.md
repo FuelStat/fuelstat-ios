@@ -95,9 +95,29 @@ truth, so figures must match the web app exactly.
       service
 - [ ] "Konto erstellen" registers a new account (only if
       `registration_enabled` is true in `/health`)
-- [ ] "Passwort vergessen?" sends the reset mail **(hosted only)**
+- [ ] "Passwort vergessen?" sends the reset mail **(hosted only)**; "Ich habe
+      den Code aus der Mail" takes the code **or the whole pasted link**, a
+      new password of at least 8 characters changes it, then sign in with
+      the address already filled in; a wrong or used code and an expired one
+      show their messages
+- [ ] Reset while **signed in** (mail for the own account): the screen names
+      the signed-in account first; afterwards the app signs out with the
+      notice "Passwort geändert" and the address is prefilled
+- [ ] Reset while signed in as account A with a mail for account B: A stays
+      signed in, the message names B **(needs two accounts; the exact
+      address needs FuelStat/fuelstat#175, release 0.13.0; before that the app
+      tests with `/whoami`)**
+- [ ] `fuelstat://reset-password?token=…&server=…` (from Notes or Safari
+      after the server's link page offers it, **0.13.0**) opens the reset
+      sheet; a `server` other than the one in use shows "Es wurde nichts
+      geändert" and sends nothing
+- [ ] `fuelstat://email-bestaetigt?server=…` shows "Deine E-Mail-Adresse ist
+      bestätigt" and Profil updates **(0.13.0)**
 - [ ] Unconfirmed e-mail address: hint is shown, "Bestätigungsmail erneut
-      senden" sends the mail **(hosted only)**
+      senden" sends the mail **(hosted only)**; "Code aus der Mail eingeben"
+      takes the code or the pasted link and the hint disappears; confirming
+      in the browser and coming back to the app clears the hint without
+      restarting
 - [ ] New terms of use (`terms.required` in `/whoami`): prompt appears,
       "Nutzungsbedingungen lesen" opens them, accepting continues – only
       testable when the server's `terms_version` changed; otherwise note
