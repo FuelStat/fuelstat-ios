@@ -12,6 +12,7 @@ struct RemoteVehicleDetailView: View {
     @State private var errorMessage: String?
     @State private var showingEdit = false
     @State private var showingArchive = false
+    @State private var showingImport = false
     @State private var showingFillup = false
     @State private var confirmingDelete = false
     @State private var isWorking = false
@@ -82,6 +83,13 @@ struct RemoteVehicleDetailView: View {
                             Label(vehicle.isShared ? "Zugriff ansehen" : "Fahrzeug teilen", systemImage: "person.2")
                         }
                         .buttonStyle(SecondaryButtonStyle())
+                        // Import belongs to the owner and is closed for archived vehicles; the API enforces it.
+                        if !vehicle.isShared, !vehicle.isArchived {
+                            Button("Einträge aus CSV importieren", systemImage: "square.and.arrow.down") {
+                                showingImport = true
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                        }
                         // Only the owner archives or deletes a vehicle; the API enforces it.
                         if !vehicle.isShared, !vehicle.isArchived {
                             Button("Als verkauft oder stillgelegt archivieren", systemImage: "archivebox") {
@@ -132,6 +140,9 @@ struct RemoteVehicleDetailView: View {
         .task(id: store.entryChanges) { await load() }
         .sheet(isPresented: $showingEdit) {
             RemoteVehicleFormView(store: store, editing: vehicle)
+        }
+        .sheet(isPresented: $showingImport) {
+            CSVImportView(store: store, vehicle: vehicle)
         }
         .sheet(isPresented: $showingArchive) {
             VehicleStatusFormView(store: store, vehicle: vehicle)

@@ -116,7 +116,7 @@ public enum EntryCSV {
     private static func charges(_ fuelType: String) -> Bool { isElectric(fuelType) || isPlugInHybrid(fuelType) }
 
     /// Unit of the amount column for vehicles with one unit.
-    private static func unitLabel(_ fuelType: String) -> String {
+    static func unitLabel(_ fuelType: String) -> String {
         switch fuelType {
         case "electric": "kWh"
         case "cng", "hydrogen": "kg"
@@ -205,7 +205,8 @@ public enum EntryCSV {
     /// Quotes a field like PHP's `fputcsv` with `;`: when it contains the delimiter, a quote, a line break, a tab or
     /// a space; quotes are doubled.
     static func encode(_ field: String) -> String {
-        let needsQuotes = field.contains { ";\"\n\r\t \\".contains($0) }
+        // By unicode scalar: a "\r\n" is a single Character in Swift and would match neither "\r" nor "\n".
+        let needsQuotes = field.unicodeScalars.contains { ";\"\n\r\t \\".unicodeScalars.contains($0) }
         guard needsQuotes else { return field }
         return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }

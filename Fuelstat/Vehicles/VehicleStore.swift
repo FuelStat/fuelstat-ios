@@ -249,6 +249,16 @@ final class VehicleStore {
         return loaded
     }
 
+    /// Imports rows of a CSV file or checks them (`dryRun`); the API skips duplicates and saves each call as one
+    /// transaction. A real import refreshes the vehicle's key figures and the widgets.
+    func importRows(into id: String, fillups: [ImportFillup], entries: [ImportEntry], dryRun: Bool) async throws
+        -> ImportResponse {
+        let send: (APIClient, String) async throws -> ImportResponse = {
+            try await $0.importEntries(vehicleID: id, fillups: fillups, entries: entries, dryRun: dryRun, token: $1)
+        }
+        return dryRun ? try await auth.call(send) : try await changingEntries(of: id, send)
+    }
+
     func timeline(of id: String, page: Int, perPage: Int, kinds: [TimelineItem.Kind], search: String?) async throws
         -> TimelinePage {
         try await auth.call {

@@ -351,6 +351,43 @@ changes and every vehicle stays active).
 - [ ] A note starting with `=` or `+` is exported with a leading apostrophe
 - [ ] Vehicle without entries: "CSV teilen" is disabled
 
+### 7e. CSV import
+
+- [ ] Vehicle page → Daten → "Einträge aus CSV importieren" exists for the
+      owner of an active vehicle, not for a shared or an archived one
+- [ ] "Vorlage teilen" gives a sample file for the vehicle's drive type (also
+      plug-in hybrid and electric with the charging columns); importing the
+      template unchanged works (2 expenses, 2 fill-ups or charges)
+- [ ] The app's own export (and the web app's export) of the same vehicle,
+      saved to Files, is recognised without changing the assignment; the
+      "Verbrauch" column is not assigned; a second import shows every row as
+      "Bereits vorhanden, wird übersprungen" and imports nothing
+- [ ] File from Excel (Windows-1252, `;`), file from Numbers (UTF-8 with BOM),
+      comma-separated file with English headers: umlauts correct, columns
+      guessed, numbers like `1.234,56` and `41,2 l` read
+- [ ] A file from a cloud provider (iCloud Drive, other) can be picked: no
+      "no permission" error
+- [ ] Assignment: changing a column updates the counts at once; without a date
+      column "Weiter zur Prüfung" stays disabled; unknown categories are
+      listed as "landet unter Sonstiges" and appear as "Sonstiges" with the
+      name in the description
+- [ ] Check: rows with a bad date, missing amount or cost are marked; with
+      them the import needs "Fehlerhafte Zeilen überspringen"; an implausible
+      odometer reading shows "Tachostand prüfen"
+- [ ] Same file in the web app's import: the same rows are found as
+      duplicates (check against both directions: import in the app, then
+      preview in the web app, and the other way round)
+- [ ] Result: imported and skipped counts match; the entries, the odometer and
+      the key figures of the vehicle are updated without restarting
+- [ ] File with more than 500 rows (also over 1000): imports in several
+      packages; switching to airplane mode in between shows what already went
+      in and that a second import skips those rows
+- [ ] More than 10.000 rows, over 5 MB, an empty file and a file with only a
+      header each show a message; Plug-in hybrid with the "Einheit" column
+      gets the right unit per row; electric: Ladeart, Ladestand, Ladedauer
+      arrive in the entry
+- [ ] Unconfirmed e-mail address: the API message is shown
+
 ### 8. Statistik, Termine and reminders
 
 - [ ] Profil → Termine → "E-Mail-Benachrichtigungen": the four occasions and

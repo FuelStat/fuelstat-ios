@@ -6,6 +6,8 @@ enum APIError: LocalizedError, Equatable {
     case server(code: String, status: Int)
     /// A plan limit was reached (`plan_required`), e.g. the number of vehicles.
     case planRequired(feature: String?, limit: Int?, plan: String?)
+    /// The import was refused because of single rows (`invalid_rows`); nothing of the request was saved.
+    case invalidRows([ImportRowIssue])
     case invalidResponse
     case network(String)
 
@@ -15,6 +17,8 @@ enum APIError: LocalizedError, Equatable {
             String(localized: "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.")
         case .planRequired(let feature, let limit, let plan):
             Self.planMessage(feature: feature, limit: limit, plan: plan)
+        case .invalidRows(let rows):
+            String(localized: "Der Server hat \(rows.count) Zeilen abgelehnt. Es wurde nichts importiert.")
         case .server(let code, _):
             switch code {
             case "invalid_credentials": String(localized: "E-Mail oder Passwort ist falsch.")
@@ -28,6 +32,15 @@ enum APIError: LocalizedError, Equatable {
             case "token_expired": String(localized: "Der Code ist abgelaufen. Fordere eine neue Mail an.")
             case "vehicle_archived":
                 String(localized: "Dieses Fahrzeug ist archiviert (verkauft oder stillgelegt) und nur lesbar. Aktiviere es wieder, um etwas zu ändern.")
+            case "charge_fields_kwh_only": String(localized: "Ladeangaben gibt es nur bei Ladevorgängen.")
+            case "invalid_chargeType": String(localized: "Die Ladeart ist ungültig.")
+            case "invalid_chargeMinutes": String(localized: "Die Ladedauer ist ungültig.")
+            case "invalid_soc", "invalid_socBeforePct", "invalid_socAfterPct":
+                String(localized: "Der Ladestand ist ungültig.")
+            case "parts_not_allowed", "invalid_parts": String(localized: "Die Bauteile passen nicht zur Kategorie.")
+            case "plan_required": String(localized: "Diese Kategorie ist in deinem Tarif nicht enthalten.")
+            case "nothing_to_import": String(localized: "Die Datei enthält keine Zeilen zum Importieren.")
+            case "too_many_rows": String(localized: "Zu viele Zeilen auf einmal. Teile die Datei in kleinere Teile.")
             case "invalid_status": String(localized: "Der Status des Fahrzeugs ist ungültig.")
             case "invalid_saleOdometerKm": String(localized: "Der Kilometerstand beim Verkauf ist ungültig.")
             case "invalid_decommissionedFrom": String(localized: "Das Datum der Stilllegung ist ungültig.")
@@ -131,6 +144,7 @@ enum APIError: LocalizedError, Equatable {
         switch self {
         case .server(let code, _): code
         case .planRequired: "plan_required"
+        case .invalidRows: "invalid_rows"
         default: nil
         }
     }
@@ -395,6 +409,14 @@ struct APIClient {
     /// Adds the odometer reading to a fill-up; the API allows this at any time.
     func setFillupOdometer(id: String, km: Int, token: String) async throws -> SavedEntry {
         try await send("fillups/\(id)", method: "PATCH", body: OdometerPatch(odometerKm: km), token: token)
+    }
+
+    /// Imports rows (or only checks them with `dryRun`): duplicates are skipped, odometer readings checked by the API.
+    func importEntries(vehicleID: String, fillups: [ImportFillup], entries: [ImportEntry], dryRun: Bool,
+                       token: String) async throws -> ImportResponse {
+        try await send("vehicles/\(vehicleID)/import", method: "POST",
+                       body: ImportRequest(fillups: fillups, entries: entries, dryRun: dryRun ? true : nil),
+                       token: token)
     }
 
     /// The fuel types and energies the server knows (no sign-in needed).
@@ -693,6 +715,10 @@ struct APIClient {
             let inputErrors: Set<String> = ["mfa_required", "invalid_mfa_code", "invalid_current_password"]
             if http.statusCode == 401, token != nil, !inputErrors.contains(code ?? "") {
                 throw APIError.unauthorized
+            }
+            if code == "invalid_rows",
+               let rows = try? JSONDecoder().decode(InvalidRowsResponse.self, from: data).rows {
+                throw APIError.invalidRows(rows)
             }
             if code == "plan_required" {
                 throw APIError.planRequired(feature: info?.feature, limit: info?.limit, plan: info?.plan)
