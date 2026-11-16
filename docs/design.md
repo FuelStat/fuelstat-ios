@@ -13,24 +13,38 @@ built in SwiftUI. Feature scope is in #15.
 
 ## Navigation (iOS)
 
-Tab bar with four tabs and a central log action:
+**Structure, names and homes of content are defined in the shared document,
+[section 7](https://github.com/FuelStat/fuelstat/blob/main/docs/design.md#7-navigation-und-aufbau)**
+(FuelStat/fuelstat#206): the five areas (7.1), vehicle choice and the extra
+views of a vehicle (7.2), quick entry (7.3), Profil groups (7.4), the glossary
+(7.5, source for `Localizable.xcstrings`) and the "home of every content" table
+(7.6). This file only says how SwiftUI shows them. Do not add areas, tabs,
+segments or labels that are not in section 7; put new content in the table
+there first.
 
-| Tab | Content |
+| Shared (section 7) | iOS |
 |---|---|
-| **Start** | Selected vehicle: hero, key figures, upcoming dates, nearby stations, latest entries |
-| **Einträge** | All entries, grouped by month, search and filters |
-| **＋ Erfassen** | Not a tab: opens the quick-entry sheet (Tanken, Laden, Ausgabe, Kilometerstand) |
-| **Statistik** | Charts and yearly overview for the selected vehicle |
-| **Profil** | Account, vehicles, reminders, import/export, settings, about |
+| Leiste: Start · Einträge · ＋ · Statistik · Profil (7.1) | `TabView` with four tabs; the "＋" sits in the middle of the tab bar as a prominent filled circle in `Brand` (not a tab: it opens the quick-entry sheet; long press offers the entry types). Accessibility label "Eintrag erfassen" |
+| Vehicle switcher (7.2) | `VehicleSwitcher` at the top of Start, Einträge and Statistik ("VW Golf ▾"), opens a sheet with the active vehicles and "Fahrzeuge verwalten" (goes to Profil → Fahrzeuge). The choice lives in memory for the session only; after launch the default vehicle (first in `sortOrder`) is selected |
+| Start with fleet plan (7.2) | With `features.fleet` and two or more active vehicles Start is a list of compact vehicle cards; a tap selects the vehicle and pushes its overview. No comparison |
+| Extra views Service · Fahrten · Fahrzeugdaten (7.2) | `NavigationStack` push from the "Mehr zum Fahrzeug" rows on Start and from Profil → Fahrzeuge → [vehicle]. No segmented control, no tab bar change |
+| Berichte und Export (7.1, 7.6) | One toolbar menu on Einträge |
+| Profil groups (7.4) | Grouped `List`: Konto, Fahrzeuge, Daten, Benachrichtigungen, Über, Darstellung |
+| Archive (7.2) | Profil → Fahrzeuge → Archiv, read-only |
 
-- **Vehicle switcher** at the top of Start, Einträge and Statistik: vehicle name
-  with a chevron ("VW Golf ▾"), opens a sheet with all vehicles (photo, name,
-  plate). The choice is remembered.
-- The "+" is a prominent filled circle in the brand colour, centred in or
-  floating just above the tab bar. Long press offers the four entry types
-  directly. It must have the accessibility label "Eintrag erfassen".
-- Vehicle management (list, add, sort) lives under Profil → Fahrzeuge and is
-  reachable from the switcher sheet ("Fahrzeuge verwalten").
+Rules that stay iOS-specific:
+
+- System tab bar and navigation bar, no custom replacements. Back is the
+  system back button and the swipe gesture.
+- One "＋" per screen (shared rule): the tab-bar circle is it, no extra
+  floating button.
+- Number inputs use `NumberField`; `CodeField` is for the 2FA code only.
+
+**Current state:** the app still has the older structure (vehicle detail with
+the segments Übersicht · Einträge · Statistik · Daten, vehicle switcher
+remembered across launches). It is moved to the structure above in
+FuelStat/fuelstat-ios#84 (milestone 0.4.0, the profile grouping and the terms
+earlier if possible).
 
 ## Screens (iOS layout)
 
@@ -46,14 +60,24 @@ Tab bar with four tabs and a central log action:
 5. **In der Nähe:** card with a small map thumbnail and the cheapest nearby
    station or charger ("Diesel 1,689 € · 350 m"); tap opens the map.
 6. **Letzte Einträge:** the latest three to five entries; "Alle anzeigen".
+7. **Mehr zum Fahrzeug:** three rows with icon and chevron: Service, Fahrten,
+   Fahrzeugdaten (pushed views, see Navigation).
 
-### Vehicle detail
-- Full-width photo at the top, content in a **sheet-style card that overlaps
-  the photo** with a grab handle look (rounded top corners). Back and edit as
-  round buttons on the photo.
-- Segmented control below the title: Übersicht · Einträge · Statistik · Daten.
-- "Daten" shows master data in grouped sections (Allgemein, Technik, Kauf,
-  Wartung, Versicherung und Steuer).
+### Vehicle views (Service, Fahrten, Fahrzeugdaten)
+There is no vehicle detail page with segments: **Start is the vehicle overview**
+(shared section 7.2). The three further views are pushed onto the navigation
+stack:
+
+- Full-width photo at the top only where it helps (Fahrzeugdaten), content in a
+  **sheet-style card that overlaps the photo** with rounded top corners. Back
+  and, where relevant, edit as round buttons on the photo.
+- **Service:** parts with intervals and replacements, upcoming dates (full list;
+  Start shows at most three).
+- **Fahrten:** trip log with purpose, evaluation and export.
+- **Fahrzeugdaten:** master data in grouped sections (Allgemein, Technik, Kauf,
+  Wartung, Versicherung und Steuer), then Status (aktiv, verkauft,
+  stillgelegt), Teilen ("Geteilt mit") and Löschen. This is the only place for
+  editing, status, sharing and deleting.
 
 ### Quick entry (sheet)
 - Type picker at the top as large chips with icons: Tanken, Laden, Ausgabe,
