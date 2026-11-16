@@ -42,6 +42,13 @@ live in [FuelStat/fuelstat](https://github.com/FuelStat/fuelstat).
   [`docs/design.md`](docs/design.md)** here for the iOS specifics (SwiftUI
   mapping, screens, components in `Fuelstat/Design/`). Token values are
   changed in the shared document first, never only here.
+- **Structure: one structure for Web, iOS and Android**, defined in section 7
+  of the shared design document (areas, home of every content, glossary).
+  Place every new screen and feature there first: each content has exactly one
+  home, labels come from the glossary (source for `Localizable.xcstrings`),
+  at most one "＋" per screen. If a content is missing from the table in 7.6,
+  add a row in FuelStat/fuelstat and name it in the PR. This repo's design
+  file only describes how SwiftUI shows the structure.
 - Signing uses a **free Apple developer account** (Personal Team). Do not add
   capabilities that need the paid program (Push Notifications, iCloud, Sign in
   with Apple, App Groups …) without asking first – the device build breaks.
@@ -175,6 +182,9 @@ anything still missing:
 - **Strings:** new user-facing text is in `Localizable.xcstrings` (German).
 - **Design:** new screens and components follow the shared design document
   (FuelStat/fuelstat `docs/design.md`) and `docs/design.md` here.
+- **Structure:** new screens and features are placed according to section 7
+  of the shared design document (home of every content, glossary terms, one
+  "＋" per screen); no area, tab, segment or label of its own.
 - **Tests:** new logic in `FuelstatCore` has tests; CI is green.
 - **Test checklist:** new or changed features have their steps in
   `docs/testing.md`.
