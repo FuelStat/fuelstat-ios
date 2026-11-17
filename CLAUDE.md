@@ -185,6 +185,11 @@ anything still missing:
 - **Structure:** new screens and features are placed according to section 7
   of the shared design document (home of every content, glossary terms, one
   "＋" per screen); no area, tab, segment or label of its own.
+- **States and look:** every new list, card or screen has all states of the
+  shared document (section 8.1: loading, empty, error, offline), texts in the
+  tone of 7.5, and none of the patterns in 1.1 ("AI look"). UI changes come with
+  screenshots in the PR (light and dark, a small and a large Dynamic Type
+  size).
 - **Tests:** new logic in `FuelstatCore` has tests; CI is green.
 - **Test checklist:** new or changed features have their steps in
   `docs/testing.md`.
